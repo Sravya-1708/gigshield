@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GigShield — Claims Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0f1e; --surface: #111827; --card: #161f30;
+  --border: #1e2d42; --accent: #f59e0b; --accent2: #3b82f6;
+  --accent3: #10b981; --danger: #ef4444;
+  --text: #f1f5f9; --muted: #94a3b8;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 1.5rem; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; margin-bottom: 2rem; }
+.logo span { color: var(--accent); }
+.nav-item {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .7rem .9rem; border-radius: 8px; cursor: pointer;
+  font-size: .88rem; color: var(--muted); transition: all .2s;
+  text-decoration: none; margin-bottom: .2rem;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active { background: rgba(245,158,11,0.1); color: var(--accent); }
+.nav-section { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin: 1.2rem 0 .5rem; }
+.sidebar-footer { margin-top: auto; }
+.worker-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .9rem; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+.main { padding: 2rem; overflow-y: auto; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem; }
+.card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+.badge { padding: .25rem .7rem; border-radius: 6px; font-size: .72rem; font-weight: 700; }
+.badge.active { background: rgba(16,185,129,.1); color: var(--accent3); }
+.badge.warning { background: rgba(245,158,11,.1); color: var(--accent); }
+.badge.danger { background: rgba(239,68,68,.1); color: var(--danger); }
+.badge.blue { background: rgba(59,130,246,.1); color: var(--accent2); }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem; }
+.metric-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
+.metric-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-val.green { color: var(--accent3); }
+.metric-val.amber { color: var(--accent); }
+.metric-sub { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+.btn-primary { background: var(--accent); color: #000; padding: .7rem 1.4rem; border-radius: 8px; font-weight: 700; font-size: .88rem; border: none; cursor: pointer; transition: all .2s; }
+.btn-primary:hover { opacity: .88; }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; transition: all .2s; }
+.btn-secondary:hover { border-color: var(--muted); }
+.claims-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.claims-table th { text-align: left; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; padding: .4rem 0 .8rem; border-bottom: 1px solid var(--border); }
+.claims-table td { padding: .8rem 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.claims-table tr:last-child td { border-bottom: none; }
+.claims-table tr:hover td { background: rgba(255,255,255,.02); }
+.claim-id { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--accent); font-size: .8rem; }
+.fraud-score-bar { display: flex; align-items: center; gap: .5rem; }
+.mini-bar { width: 60px; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.mini-bar-fill { height: 100%; border-radius: 99px; }
+
+/* Claim pipeline */
+.pipeline { display: flex; gap: 0; margin: 1.5rem 0; }
+.pipeline-step {
+  flex: 1; padding: 1rem; background: var(--surface); border: 1px solid var(--border);
+  position: relative; text-align: center;
+}
+.pipeline-step:not(:last-child)::after {
+  content: '→'; position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); font-size: 1.2rem; z-index: 1;
+}
+.pipeline-step:first-child { border-radius: 10px 0 0 10px; }
+.pipeline-step:last-child { border-radius: 0 10px 10px 0; }
+.pipeline-step.done { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.3); }
+.pipeline-step.active { background: rgba(245,158,11,.06); border-color: rgba(245,158,11,.3); }
+.pipeline-step.failed { background: rgba(239,68,68,.06); border-color: rgba(239,68,68,.3); }
+.ps-icon { font-size: 1.3rem; margin-bottom: .3rem; }
+.ps-label { font-size: .72rem; font-weight: 700; color: var(--muted); }
+.ps-status { font-size: .68rem; margin-top: .2rem; }
+
+/* Fraud signals */
+.fraud-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1rem; }
+.fraud-signal { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: .9rem; }
+.fs-label { font-size: .72rem; color: var(--muted); margin-bottom: .3rem; }
+.fs-value { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; }
+.fs-value.pass { color: var(--accent3); }
+.fs-value.warn { color: var(--accent); }
+.fs-value.fail { color: var(--danger); }
+
+/* Zero-touch timeline */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.tl-item { display: flex; gap: 1rem; padding: 1rem 0; position: relative; }
+.tl-item:not(:last-child)::after {
+  content: ''; position: absolute; left: 19px; top: 48px;
+  width: 2px; height: calc(100% - 16px); background: var(--border);
+}
+.tl-dot { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+.tl-dot.done { background: rgba(16,185,129,.15); border: 2px solid var(--accent3); }
+.tl-dot.active { background: rgba(245,158,11,.15); border: 2px solid var(--accent); animation: glow 1.5s infinite; }
+.tl-dot.pending { background: var(--surface); border: 2px solid var(--border); }
+.tl-content { flex: 1; padding-top: .4rem; }
+.tl-title { font-weight: 700; font-size: .88rem; }
+.tl-desc { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+.tl-time { font-size: .72rem; color: var(--accent3); margin-top: .3rem; }
+
+@keyframes glow { 0%,100%{box-shadow:0 0 0 rgba(245,158,11,0)} 50%{box-shadow:0 0 12px rgba(245,158,11,.4)} }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal-box { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:2rem; max-width:580px; width:90%; max-height:90vh; overflow-y:auto; animation:fadeIn .3s ease; }
+
+.filter-bar { display:flex; gap:.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+.filter-btn { background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:.4rem .9rem; border-radius:6px; font-size:.8rem; cursor:pointer; transition:all .2s; }
+.filter-btn.active { background:rgba(245,158,11,.1); border-color:var(--accent); color:var(--accent); }
+.filter-btn:hover { border-color:var(--muted); color:var(--text); }
+
+@media (max-width:900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .fraud-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="logo">Gig<span>Shield</span></div>
+    <div class="nav-section">Main</div>
+    <a href="dashboard.html" class="nav-item"><span>🏠</span> Dashboard</a>
+    <a href="policy.html" class="nav-item"><span>🛡️</span> My Policy</a>
+    <a href="claims.html" class="nav-item active"><span>📋</span> Claims</a>
+    <a href="payouts.html" class="nav-item"><span>💸</span> Payouts</a>
+    <div class="nav-section">Tools</div>
+    <a href="premium-engine.html" class="nav-item"><span>🤖</span> Premium Engine</a>
+    <a href="index.html" class="nav-item"><span>←</span> Back to Home</a>
+    <div class="sidebar-footer">
+      <div class="worker-card">
+        <div style="font-weight:700; font-size:.9rem;">Ravi Kumar</div>
+        <div style="font-size:.75rem; color:var(--accent); margin-top:.2rem;">Pro Shield · Week 14</div>
+        <div style="display:flex; align-items:center; gap:.4rem; font-size:.75rem; color:var(--accent3); margin-top:.4rem;"><span class="dot"></span> Policy Active</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h1 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.8rem;">Claims Management</h1>
+        <p style="color:var(--muted); font-size:.88rem; margin-top:.3rem;">Zero-touch parametric claims · Auto-processed · No paperwork</p>
+      </div>
+      <button class="btn-primary" onclick="openNewClaim()">⚡ Simulate New Claim</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="metrics">
+      <div class="metric-card">
+        <div class="metric-label">Total Claims</div>
+        <div class="metric-val amber">8</div>
+        <div class="metric-sub">14 weeks insured</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Auto-Approved</div>
+        <div class="metric-val green">8</div>
+        <div class="metric-sub">100% auto-approval rate</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Paid Out</div>
+        <div class="metric-val green">₹3,240</div>
+        <div class="metric-sub">Avg ₹405/claim</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Payout Time</div>
+        <div class="metric-val" style="color:var(--accent2);">1.8 min</div>
+        <div class="metric-sub">Fastest: 47 seconds</div>
+      </div>
+    </div>
+
+    <!-- Zero-Touch Claim Flow Explanation -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-title">How Zero-Touch Claims Work</div>
+      <div class="pipeline">
+        <div class="pipeline-step done">
+          <div class="ps-icon">📡</div>
+          <div class="ps-label">Trigger Detected</div>
+          <div class="ps-status" style="color:var(--accent3);">Live API data</div>
+        </div>
+        <div class="pipeline-step done">
+          <div class="ps-icon">🌐</div>
+          <div class="ps-label">Weather Verified</div>
+          <div class="ps-status" style="color:var(--accent3);">OpenMeteo + IMD</div>
+        </div>
+        <div class="pipeline-step done">
+          <div class="ps-icon">📍</div>
+          <div class="ps-label">GPS Validated</div>
+          <div class="ps-status" style="color:var(--accent3);">Cell tower cross-check</div>
+        </div>
+        <div class="pipeline-step done">
+          <div class="ps-icon">🤖</div>
+          <div class="ps-label">Fraud Scored</div>
+          <div class="ps-status" style="color:var(--accent3);">12-signal ML model</div>
+        </div>
+        <div class="pipeline-step done">
+          <div class="ps-icon">💸</div>
+          <div class="ps-label">UPI Sent</div>
+          <div class="ps-status" style="color:var(--accent3);">Under 2 minutes</div>
+        </div>
+      </div>
+      <p style="font-size:.82rem; color:var(--muted);">Worker takes zero action. When a parametric trigger fires in your registered zone, GigShield automatically opens, validates, and pays the claim.</p>
+    </div>
+
+    <!-- Filter bar + Claims table -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-title">All Claims</div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterClaims('all', this)">All (8)</button>
+        <button class="filter-btn" onclick="filterClaims('rain', this)">🌧️ Rain (3)</button>
+        <button class="filter-btn" onclick="filterClaims('heat', this)">🌡️ Heat (2)</button>
+        <button class="filter-btn" onclick="filterClaims('aqi', this)">😷 AQI (1)</button>
+        <button class="filter-btn" onclick="filterClaims('curfew', this)">🚧 Curfew (2)</button>
+      </div>
+      <table class="claims-table" id="claims-table">
+        <thead><tr>
+          <th>Claim ID</th>
+          <th>Date & Time</th>
+          <th>Trigger Type</th>
+          <th>Duration</th>
+          <th>Payout</th>
+          <th>Fraud Score</th>
+          <th>Process Time</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="claims-tbody">
+          <!-- Injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Fraud Detection Panel -->
+    <div class="card">
+      <div class="card-title">🛡️ Fraud Detection Engine — Last Claim Analysis</div>
+      <p style="font-size:.85rem; color:var(--muted); margin-bottom:1.2rem;">12-signal fraud model runs on every claim. Score below 30 = auto-approve. 30–70 = soft review. Above 70 = manual escalation.</p>
+      
+      <div style="display:flex; align-items:center; gap:2rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:3rem; color:var(--accent3);">2</div>
+          <div style="font-size:.78rem; color:var(--muted);">Fraud Score</div>
+          <div style="font-size:.72rem; color:var(--accent3);">Auto-Approved ✓</div>
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <div style="display:flex; justify-content:space-between; font-size:.78rem; color:var(--muted); margin-bottom:.4rem;">
+            <span>0 — Safe</span><span>30 — Review</span><span>70 — Flag</span><span>100 — Reject</span>
+          </div>
+          <div style="height:12px; background:var(--border); border-radius:99px; overflow:hidden; position:relative;">
+            <div style="width:2%; height:100%; background:var(--accent3); border-radius:99px;"></div>
+            <div style="position:absolute; top:0; left:30%; height:100%; width:1px; background:var(--accent); opacity:.5;"></div>
+            <div style="position:absolute; top:0; left:70%; height:100%; width:1px; background:var(--danger); opacity:.5;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fraud-grid">
+        <div class="fraud-signal">
+          <div class="fs-label">GPS vs Cell Tower</div>
+          <div class="fs-value pass">✓ Match (&lt;180m)</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">IP Geolocation</div>
+          <div class="fs-value pass">✓ Consistent</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Speed Validity</div>
+          <div class="fs-value pass">✓ No anomaly</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Weather Correlation</div>
+          <div class="fs-value pass">✓ IMD match</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Platform Records</div>
+          <div class="fs-value pass">✓ Order-pause logged</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Device Fingerprint</div>
+          <div class="fs-value pass">✓ Single device</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Claim Velocity</div>
+          <div class="fs-value pass">✓ Normal rate</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Cluster Analysis</div>
+          <div class="fs-value pass">✓ No ring detected</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Account Age</div>
+          <div class="fs-value pass">✓ 14 weeks (trusted)</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">UPI Link</div>
+          <div class="fs-value pass">✓ Verified unique</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Radar Zone Match</div>
+          <div class="fs-value pass">✓ 2km grid aligned</div>
+        </div>
+        <div class="fraud-signal">
+          <div class="fs-label">Historical Pattern</div>
+          <div class="fs-value pass">✓ Consistent behavior</div>
+        </div>
+      </div>
+
+      <div style="margin-top:1.2rem; background:rgba(16,185,129,.06); border:1px solid rgba(16,185,129,.2); border-radius:8px; padding:1rem; font-size:.85rem;">
+        <strong style="color:var(--accent3);">✅ Claim Auto-Approved</strong>
+        <span style="color:var(--muted); margin-left:.5rem;">All 12 signals clear. Zero human review needed. ₹480 sent to ravi@upi in 1 min 47 sec.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Claim Detail Modal -->
+<div class="modal-overlay" id="claim-modal">
+  <div class="modal-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <h2 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem;" id="modal-title">Claim Detail</h2>
+      <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.2rem;">✕</button>
+    </div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- New Claim Simulator Modal -->
+<div class="modal-overlay" id="new-claim-modal">
+  <div class="modal-box">
+    <h2 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:1rem;">⚡ Zero-Touch Claim Simulator</h2>
+    <p style="font-size:.85rem; color:var(--muted); margin-bottom:1.5rem;">Watch the full automated claims pipeline execute in real-time. No worker action required.</p>
+    
+    <div style="margin-bottom:1.2rem;">
+      <label style="font-size:.8rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em;">Select Trigger</label>
+      <div style="display:flex; gap:.5rem; margin-top:.6rem; flex-wrap:wrap;">
+        <button class="filter-btn active" id="sim-rain" onclick="selectSimTrigger('rain', this)">🌧️ Heavy Rain</button>
+        <button class="filter-btn" id="sim-heat" onclick="selectSimTrigger('heat', this)">🌡️ Extreme Heat</button>
+        <button class="filter-btn" id="sim-aqi" onclick="selectSimTrigger('aqi', this)">😷 AQI Alert</button>
+        <button class="filter-btn" id="sim-curfew" onclick="selectSimTrigger('curfew', this)">🚧 Zone Curfew</button>
+        <button class="filter-btn" id="sim-outage" onclick="selectSimTrigger('outage', this)">📡 Platform Outage</button>
+      </div>
+    </div>
+
+    <div id="claim-pipeline-steps" style="display:none;">
+      <div class="timeline" id="claim-timeline"></div>
+      <div id="claim-success" style="display:none; background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.3); border-radius:12px; padding:1.5rem; text-align:center; margin-top:1rem;">
+        <div style="font-size:2rem; margin-bottom:.5rem;">✅</div>
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem; color:var(--accent3);">Claim Auto-Approved!</div>
+        <div id="claim-payout-text" style="color:var(--muted); font-size:.88rem; margin:.5rem 0 .3rem;"></div>
+        <div style="font-size:.75rem; color:var(--muted);" id="claim-id-text"></div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:.7rem; margin-top:1.5rem;">
+      <button class="btn-primary" onclick="runClaimSimulation()" id="sim-run-btn">▶ Run Simulation</button>
+      <button class="btn-secondary" onclick="closeNewClaimModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const claimsData = [
+  { id: 'CLM-2026-0487', date: 'Apr 3, 2026 14:32', type: 'rain', label: '🌧️ Heavy Rain', duration: '2.5 hrs', payout: 480, fraud: 2, time: '1m 47s', status: 'approved' },
+  { id: 'CLM-2026-0471', date: 'Mar 26, 2026 11:15', type: 'heat', label: '🌡️ Extreme Heat', duration: '3.0 hrs', payout: 600, fraud: 5, time: '2m 03s', status: 'approved' },
+  { id: 'CLM-2026-0461', date: 'Mar 20, 2026 09:00', type: 'rain', label: '🌧️ Heavy Rain', duration: '4.0 hrs', payout: 800, fraud: 3, time: '1m 52s', status: 'approved' },
+  { id: 'CLM-2026-0441', date: 'Mar 12, 2026 16:45', type: 'aqi', label: '😷 AQI Alert', duration: '4.0 hrs', payout: 320, fraud: 1, time: '1m 31s', status: 'approved' },
+  { id: 'CLM-2026-0421', date: 'Mar 5, 2026 08:30', type: 'heat', label: '🌡️ Extreme Heat', duration: '2.0 hrs', payout: 400, fraud: 7, time: '3m 10s', status: 'approved' },
+  { id: 'CLM-2026-0401', date: 'Feb 28, 2026 07:15', type: 'curfew', label: '🚧 Zone Curfew', duration: '5.0 hrs', payout: 900, fraud: 3, time: '2m 22s', status: 'approved' },
+  { id: 'CLM-2026-0381', date: 'Feb 20, 2026 13:00', type: 'rain', label: '🌧️ Heavy Rain', duration: '1.5 hrs', payout: 288, fraud: 4, time: '1m 58s', status: 'approved' },
+  { id: 'CLM-2026-0341', date: 'Feb 8, 2026 10:45', type: 'curfew', label: '🚧 Zone Curfew', duration: '3.5 hrs', payout: 452, fraud: 2, time: '2m 14s', status: 'approved' },
+];
+
+function renderTable(filter) {
+  const tbody = document.getElementById('claims-tbody');
+  const filtered = filter === 'all' ? claimsData : claimsData.filter(c => c.type === filter);
+  tbody.innerHTML = filtered.map(c => {
+    const fraudColor = c.fraud < 20 ? 'var(--accent3)' : c.fraud < 50 ? 'var(--accent)' : 'var(--danger)';
+    return `<tr>
+      <td class="claim-id">${c.id}</td>
+      <td style="font-size:.82rem;">${c.date}</td>
+      <td>${c.label}</td>
+      <td>${c.duration}</td>
+      <td style="color:var(--accent3); font-weight:700;">₹${c.payout.toLocaleString()}</td>
+      <td>
+        <div class="fraud-score-bar">
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${c.fraud}%; background:${fraudColor};"></div></div>
+          <span style="color:${fraudColor}; font-weight:700; font-size:.8rem;">${c.fraud}/100</span>
+        </div>
+      </td>
+      <td style="color:var(--accent3); font-size:.85rem;">⚡ ${c.time}</td>
+      <td><span class="badge active">Auto-Approved</span></td>
+      <td><button class="btn-secondary" style="font-size:.75rem; padding:.3rem .7rem;" onclick="viewClaim('${c.id}')">View</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterClaims(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(type);
+}
+
+function viewClaim(id) {
+  const c = claimsData.find(x => x.id === id);
+  document.getElementById('modal-title').textContent = `Claim ${c.id}`;
+  document.getElementById('modal-content').innerHTML = `
+    <div style="background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.2); border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:.8rem; font-size:.85rem;">
+        <div><div style="color:var(--muted);font-size:.72rem;">Trigger</div><div style="font-weight:700;">${c.label}</div></div>
+        <div><div style="color:var(--muted);font-size:.72rem;">Amount Paid</div><div style="font-weight:700; color:var(--accent3);">₹${c.payout.toLocaleString()}</div></div>
+        <div><div style="color:var(--muted);font-size:.72rem;">Date</div><div style="font-weight:700;">${c.date}</div></div>
+        <div><div style="color:var(--muted);font-size:.72rem;">Duration</div><div style="font-weight:700;">${c.duration}</div></div>
+        <div><div style="color:var(--muted);font-size:.72rem;">Process Time</div><div style="font-weight:700; color:var(--accent3);">⚡ ${c.time}</div></div>
+        <div><div style="color:var(--muted);font-size:.72rem;">Fraud Score</div><div style="font-weight:700; color:var(--accent3);">${c.fraud}/100 ✓</div></div>
+      </div>
+    </div>
+    <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; margin-bottom:.8rem;">Verification Steps</div>
+    <div style="display:flex; flex-direction:column; gap:.5rem;">
+      ${['OpenMeteo API: Trigger threshold confirmed', 'GPS coordinates validated (within 180m of cell tower)', 'Platform order-pause cross-referenced', 'Fraud model: ${c.fraud}/100 — all 12 signals clear', 'UPI payout initiated: ravi@upi'].map(s => `
+        <div style="display:flex; gap:.7rem; align-items:center; font-size:.82rem;">
+          <span style="color:var(--accent3);">✅</span><span style="color:var(--muted);">${s.replace('${c.fraud}', c.fraud)}</span>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:1.2rem; background:rgba(16,185,129,.06); border:1px solid rgba(16,185,129,.2); border-radius:8px; padding:1rem; font-size:.85rem; color:var(--accent3);">
+      ✅ Claim auto-approved and paid. Zero manual action required.
+    </div>
+  `;
+  document.getElementById('claim-modal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('claim-modal').classList.remove('show'); }
+
+// Simulation
+let simTrigger = 'rain';
+function selectSimTrigger(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  simTrigger = type;
+  document.getElementById('claim-pipeline-steps').style.display = 'none';
+  document.getElementById('claim-success').style.display = 'none';
+  document.getElementById('sim-run-btn').disabled = false;
+}
+
+const triggerData = {
+  rain: { icon: '🌧️', label: 'Heavy Rain (62mm/hr)', payout: 480, hours: 2.5 },
+  heat: { icon: '🌡️', label: 'Extreme Heat (47°C)', payout: 600, hours: 3.0 },
+  aqi: { icon: '😷', label: 'AQI Alert (AQI 318)', payout: 320, hours: 4.0 },
+  curfew: { icon: '🚧', label: 'Zone Curfew (Govt. advisory)', payout: 750, hours: 5.0 },
+  outage: { icon: '📡', label: 'Platform Outage (Zomato down 95 min)', payout: 380, hours: 2.0 },
+};
+
+function runClaimSimulation() {
+  const td = triggerData[simTrigger];
+  const steps = [
+    { icon: '📡', title: 'Trigger Detected', desc: `${td.label} detected in Hyderabad Zone 3` },
+    { icon: '🌐', title: 'Data Verified', desc: 'OpenMeteo + mock CPCB API cross-check complete' },
+    { icon: '📍', title: 'Location Validated', desc: 'GPS, cell tower & IP all within 200m — consistent' },
+    { icon: '🤖', title: 'Fraud Score Computed', desc: '12-signal ML model: Score 2/100 — auto-approved' },
+    { icon: '💸', title: 'UPI Payout Initiated', desc: `₹${td.payout} → ravi@upi` },
+    { icon: '✅', title: 'Claim Complete', desc: 'Payment confirmed. Total time: 1m 47s' },
+  ];
+
+  document.getElementById('claim-pipeline-steps').style.display = 'block';
+  document.getElementById('claim-success').style.display = 'none';
+  document.getElementById('sim-run-btn').disabled = true;
+
+  const timeline = document.getElementById('claim-timeline');
+  timeline.innerHTML = steps.map((s, i) => `
+    <div class="tl-item" id="tl-${i}">
+      <div class="tl-dot pending" id="tl-dot-${i}">${s.icon}</div>
+      <div class="tl-content" style="opacity:.4;" id="tl-cnt-${i}">
+        <div class="tl-title">${s.title}</div>
+        <div class="tl-desc">${s.desc}</div>
+        <div class="tl-time" id="tl-time-${i}"></div>
+      </div>
+    </div>`).join('');
+
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      document.getElementById('tl-dot-' + i).className = 'tl-dot active';
+      document.getElementById('tl-cnt-' + i).style.opacity = '1';
+      setTimeout(() => {
+        document.getElementById('tl-dot-' + i).className = 'tl-dot done';
+        document.getElementById('tl-time-' + i).textContent = `Completed in ${(Math.random()*10+5).toFixed(1)}s`;
+        if(i === steps.length - 1) {
+          document.getElementById('claim-success').style.display = 'block';
+          document.getElementById('claim-payout-text').textContent = `₹${td.payout} credited to ravi@upi in 1 min 47 sec`;
+          const newId = 'CLM-2026-0' + Math.floor(490 + Math.random()*10);
+          document.getElementById('claim-id-text').textContent = `Claim ID: ${newId} · Fraud Score: 2/100`;
+          document.getElementById('sim-run-btn').disabled = false;
+        }
+      }, 400);
+    }, i * 700 + 200);
+  });
+}
+
+function openNewClaim() { document.getElementById('new-claim-modal').classList.add('show'); }
+function closeNewClaimModal() { document.getElementById('new-claim-modal').classList.remove('show'); }
+
+renderTable('all');
+</script>
+</body>
+</html>

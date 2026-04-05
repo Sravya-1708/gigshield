@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GigShield — Payouts</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0f1e; --surface: #111827; --card: #161f30;
+  --border: #1e2d42; --accent: #f59e0b; --accent2: #3b82f6;
+  --accent3: #10b981; --danger: #ef4444;
+  --text: #f1f5f9; --muted: #94a3b8;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 1.5rem; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; margin-bottom: 2rem; }
+.logo span { color: var(--accent); }
+.nav-section { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin: 1.2rem 0 .5rem; }
+.nav-item {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .7rem .9rem; border-radius: 8px; cursor: pointer;
+  font-size: .88rem; color: var(--muted); transition: all .2s;
+  text-decoration: none; margin-bottom: .2rem;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active { background: rgba(245,158,11,0.1); color: var(--accent); }
+.nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding-top: 1rem; }
+.worker-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .9rem; }
+.worker-name { font-weight: 700; font-size: .9rem; }
+.worker-plan { font-size: .75rem; color: var(--accent); margin-top: .2rem; }
+.worker-status { display: flex; align-items: center; gap: .4rem; font-size: .75rem; color: var(--accent3); margin-top: .4rem; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+.main { padding: 2rem; overflow-y: auto; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+.topbar h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.6rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem; }
+.card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+.badge { padding: .25rem .7rem; border-radius: 6px; font-size: .72rem; font-weight: 700; }
+.badge.active { background: rgba(16,185,129,.1); color: var(--accent3); }
+.badge.pending { background: rgba(245,158,11,.1); color: var(--accent); }
+.badge.processing { background: rgba(59,130,246,.1); color: var(--accent2); }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.metric-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.3rem; }
+.metric-card.highlight { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.05); }
+.metric-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
+.metric-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-val.green { color: var(--accent3); }
+.metric-val.amber { color: var(--accent); }
+.metric-val.blue { color: var(--accent2); }
+.metric-sub { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+.payout-table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+.payout-table th { text-align: left; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; padding: .5rem 0 .9rem; border-bottom: 1px solid var(--border); }
+.payout-table td { padding: .85rem 0; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.payout-table tr:last-child td { border-bottom: none; }
+.payout-table tr:hover td { background: rgba(255,255,255,.015); }
+.upi-chip { display: inline-flex; align-items: center; gap: .4rem; background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); color: var(--accent2); padding: .2rem .6rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+.btn-primary { background: var(--accent); color: #000; padding: .7rem 1.4rem; border-radius: 8px; font-weight: 700; font-size: .88rem; border: none; cursor: pointer; transition: all .2s; }
+.btn-primary:hover { opacity: .88; }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; transition: all .2s; }
+.btn-secondary:hover { border-color: var(--muted); }
+.tab-bar { display: flex; gap: .5rem; margin-bottom: 2rem; background: var(--surface); border-radius: 10px; padding: .3rem; width: fit-content; }
+.tab-btn { padding: .5rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); background: none; border: none; transition: all .2s; }
+.tab-btn.active { background: var(--card); color: var(--text); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: .4rem; }
+.progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent2), var(--accent3)); transition: width 1.2s ease; }
+.upi-status-card { background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(59,130,246,.05)); border: 1px solid rgba(16,185,129,.25); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.upi-info { display: flex; align-items: center; gap: 1rem; }
+.upi-icon { font-size: 2.2rem; }
+.upi-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+.upi-sub { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+.timeline { position: relative; padding-left: 1.5rem; }
+.timeline::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.tl-item { position: relative; padding-bottom: 1.5rem; }
+.tl-item:last-child { padding-bottom: 0; }
+.tl-dot { position: absolute; left: -1.5rem; top: 3px; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent3); background: var(--bg); }
+.tl-dot.paid { background: var(--accent3); border-color: var(--accent3); }
+.tl-dot.processing { background: var(--accent2); border-color: var(--accent2); animation: pulse 1.5s infinite; }
+.tl-time { font-size: .75rem; color: var(--muted); margin-bottom: .3rem; }
+.tl-title { font-weight: 600; font-size: .9rem; }
+.tl-amount { font-family: 'Syne', sans-serif; font-weight: 800; color: var(--accent3); font-size: 1rem; }
+.tl-desc { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+.chart-mini { display: flex; align-items: flex-end; gap: .4rem; height: 70px; }
+.cm-bar { flex: 1; border-radius: 3px 3px 0 0; min-width: 12px; }
+.filter-bar { display: flex; gap: .7rem; flex-wrap: wrap; margin-bottom: 1.2rem; align-items: center; }
+.filter-chip { padding: .35rem .9rem; border-radius: 99px; border: 1px solid var(--border); font-size: .78rem; font-weight: 600; cursor: pointer; color: var(--muted); background: none; transition: all .2s; }
+.filter-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(245,158,11,.08); }
+.filter-chip:hover { color: var(--text); }
+.withdrawal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.wd-left { display: flex; align-items: center; gap: .9rem; }
+.wd-icon { font-size: 1.6rem; }
+.wd-method { font-weight: 700; font-size: .92rem; }
+.wd-detail { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+.wd-primary-tag { font-size: .7rem; font-weight: 700; color: var(--accent3); background: rgba(16,185,129,.1); padding: .15rem .5rem; border-radius: 4px; margin-left: .5rem; }
+.amount-input-wrap { position: relative; }
+.amount-input-wrap span { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1rem; }
+.amount-input-wrap input { padding-left: 2rem; }
+.form-group label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .4rem; text-transform: uppercase; letter-spacing: .05em; }
+.form-group input, .form-group select {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: .7rem .9rem;
+  color: var(--text); font-size: .9rem; font-family: 'DM Sans', sans-serif;
+  outline: none; transition: border-color .2s;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+.toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--card); border: 1px solid var(--accent3); color: var(--text); padding: 1rem 1.5rem; border-radius: 12px; font-size: .9rem; font-weight: 600; z-index: 9999; animation: fadeUp .3s ease; display: none; box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+@media (max-width:900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo">Gig<span>Shield</span></div>
+    <div class="nav-section">Main</div>
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="policy.html" class="nav-item"><span class="nav-icon">🛡️</span> My Policy</a>
+    <a href="claims.html" class="nav-item"><span class="nav-icon">📋</span> Claims</a>
+    <a href="payouts.html" class="nav-item active"><span class="nav-icon">💸</span> Payouts</a>
+    <div class="nav-section">Tools</div>
+    <a href="premium-engine.html" class="nav-item"><span class="nav-icon">🤖</span> Premium Engine</a>
+    <a href="#" class="nav-item"><span class="nav-icon">📊</span> Earnings</a>
+    <a href="#" class="nav-item"><span class="nav-icon">⚙️</span> Settings</a>
+    <a href="index.html" class="nav-item"><span class="nav-icon">←</span> Back to Home</a>
+    <div class="sidebar-footer">
+      <div class="worker-card">
+        <div class="worker-name">Ravi Kumar</div>
+        <div class="worker-plan">Pro Shield · Week 14</div>
+        <div class="worker-status"><span class="dot"></span> Policy Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>💸 Payouts</h1>
+        <p style="color:var(--muted); font-size:.88rem; margin-top:.2rem;">
+          All claim settlements, UPI transfers & payout history
+        </p>
+      </div>
+      <div style="display:flex; gap:.8rem; align-items:center; flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="exportCSV()">⬇️ Export CSV</button>
+        <button class="btn-primary" onclick="openWithdrawModal()">+ Withdraw Balance</button>
+      </div>
+    </div>
+
+    <!-- SUMMARY METRICS -->
+    <div class="metrics">
+      <div class="metric-card highlight">
+        <div class="metric-label">Total Received</div>
+        <div class="metric-val amber">₹3,240</div>
+        <div class="metric-sub">8 payouts · 14 weeks</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">This Week</div>
+        <div class="metric-val green">₹480</div>
+        <div class="metric-sub">Rain trigger · Apr 3</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Payout Time</div>
+        <div class="metric-val blue">1m 58s</div>
+        <div class="metric-sub">Zero-touch processing</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Pending Balance</div>
+        <div class="metric-val" style="color:var(--muted);" id="pending-balance">₹0</div>
+        <div class="metric-sub">All claims settled</div>
+      </div>
+    </div>
+
+    <!-- UPI ACCOUNT STATUS -->
+    <div class="upi-status-card">
+      <div class="upi-info">
+        <div class="upi-icon">🏦</div>
+        <div>
+          <div class="upi-title">UPI Account Linked <span style="color:var(--accent3); font-size:.78rem;">✓ Verified</span></div>
+          <div class="upi-sub">ravi@upi · SBI Bank · Linked Apr 3, 2026 · Auto-payout enabled</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:.7rem;">
+        <button class="btn-secondary" style="font-size:.8rem; padding:.5rem 1rem;" onclick="changeUPI()">Change UPI</button>
+        <button class="btn-secondary" style="font-size:.8rem; padding:.5rem 1rem;" onclick="testPayout()">Send ₹1 Test</button>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('history')">Payout History</button>
+      <button class="tab-btn" onclick="switchTab('timeline')">Timeline</button>
+      <button class="tab-btn" onclick="switchTab('methods')">Payment Methods</button>
+      <button class="tab-btn" onclick="switchTab('analytics')">Analytics</button>
+    </div>
+
+    <!-- TAB: HISTORY -->
+    <div class="tab-content active" id="tab-history">
+      <div class="card">
+        <div class="card-title">
+          All Payouts
+          <div style="display:flex; gap:.5rem;">
+            <span style="font-size:.78rem; color:var(--muted); font-weight:400; align-self:center;" id="filter-label">Showing: All</span>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <button class="filter-chip active" onclick="filterPayouts('all', this)">All</button>
+          <button class="filter-chip" onclick="filterPayouts('rain', this)">🌧️ Rain</button>
+          <button class="filter-chip" onclick="filterPayouts('heat', this)">🌡️ Heat</button>
+          <button class="filter-chip" onclick="filterPayouts('aqi', this)">😷 AQI</button>
+          <button class="filter-chip" onclick="filterPayouts('curfew', this)">🚧 Curfew</button>
+          <button class="filter-chip" onclick="filterPayouts('outage', this)">📡 Outage</button>
+        </div>
+
+        <table class="payout-table" id="payouts-table">
+          <thead>
+            <tr>
+              <th>Payout ID</th>
+              <th>Date & Time</th>
+              <th>Trigger</th>
+              <th>Claim ID</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Speed</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="payouts-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: TIMELINE -->
+    <div class="tab-content" id="tab-timeline">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+        <div class="card">
+          <div class="card-title">Payout Timeline</div>
+          <div class="timeline" id="payout-timeline"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Processing Speed</div>
+          <p style="font-size:.83rem; color:var(--muted); margin-bottom:1.2rem;">GigShield's zero-touch claim engine — average time from trigger to UPI credit.</p>
+          <div style="display:flex; flex-direction:column; gap:.9rem;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.4rem;"><span>Trigger Verification</span><span style="color:var(--accent3); font-weight:700;">~5 sec</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:5%;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.4rem;"><span>GPS + Fraud Check</span><span style="color:var(--accent3); font-weight:700;">~30 sec</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:25%;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.4rem;"><span>Claim Approval</span><span style="color:var(--accent3); font-weight:700;">~45 sec</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:38%;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.4rem;"><span>UPI Transfer Initiated</span><span style="color:var(--accent); font-weight:700;">~1 min 20 sec</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:67%; background: linear-gradient(90deg, var(--accent2), var(--accent));"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.4rem;"><span>Bank Credit Confirmed</span><span style="color:var(--accent); font-weight:700;">~2 min avg</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width:100%; background: linear-gradient(90deg, var(--accent3), var(--accent));"></div></div>
+            </div>
+          </div>
+          <div style="margin-top:1.5rem; background: rgba(16,185,129,.06); border:1px solid rgba(16,185,129,.2); border-radius:10px; padding:1rem; text-align:center;">
+            <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:2rem; color:var(--accent3);">1m 58s</div>
+            <div style="font-size:.8rem; color:var(--muted);">Average payout time (last 8 claims)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: METHODS -->
+    <div class="tab-content" id="tab-methods">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+        <div class="card">
+          <div class="card-title">Linked Payment Methods</div>
+
+          <div class="withdrawal-card">
+            <div class="wd-left">
+              <div class="wd-icon">📱</div>
+              <div>
+                <div class="wd-method">UPI — ravi@upi <span class="wd-primary-tag">PRIMARY</span></div>
+                <div class="wd-detail">SBI Bank · Auto-payout active · Verified ✓</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:.5rem;">
+              <button class="btn-secondary" style="font-size:.78rem; padding:.4rem .8rem;" onclick="editUPI()">Edit</button>
+            </div>
+          </div>
+
+          <div class="withdrawal-card">
+            <div class="wd-left">
+              <div class="wd-icon">🏦</div>
+              <div>
+                <div class="wd-method">Bank Transfer — HDFC ••••3821</div>
+                <div class="wd-detail">IFSC: HDFC0001234 · Backup method</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:.5rem;">
+              <button class="btn-secondary" style="font-size:.78rem; padding:.4rem .8rem;" onclick="setPrimary()">Set Primary</button>
+              <button class="btn-secondary" style="font-size:.78rem; padding:.4rem .8rem; color:var(--danger); border-color:rgba(239,68,68,.3);" onclick="removeMethod()">Remove</button>
+            </div>
+          </div>
+
+          <button class="btn-secondary" style="width:100%; margin-top:.5rem; font-size:.85rem;" onclick="addMethod()">+ Add Payment Method</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Quick Withdraw</div>
+          <p style="font-size:.83rem; color:var(--muted); margin-bottom:1.2rem;">Your current withdrawable balance is <span style="color:var(--accent3); font-weight:700;">₹0.00</span>. All claims have been settled.</p>
+
+          <div style="display:flex; flex-direction:column; gap:1rem;">
+            <div class="form-group">
+              <label>Amount to Withdraw</label>
+              <div class="amount-input-wrap">
+                <span>₹</span>
+                <input type="number" placeholder="0.00" min="1" max="9999" id="withdraw-amount" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Send To</label>
+              <select id="withdraw-method">
+                <option>UPI — ravi@upi (Primary)</option>
+                <option>Bank — HDFC ••••3821</option>
+              </select>
+            </div>
+            <button class="btn-primary" style="width:100%;" onclick="initiateWithdraw()">Withdraw Now →</button>
+            <p style="font-size:.75rem; color:var(--muted); text-align:center;">Transfers arrive within 2 minutes via UPI</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: ANALYTICS -->
+    <div class="tab-content" id="tab-analytics">
+      <div style="display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+        <div class="card">
+          <div class="card-title">Monthly Payout Trend</div>
+          <div style="display:flex; align-items:flex-end; gap:.6rem; height:120px; margin:1rem 0;">
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+              <div style="background:var(--accent2); border-radius:4px 4px 0 0; width:100%; height:55%;" title="₹1,200"></div>
+              <div style="font-size:.68rem; color:var(--muted); margin-top:.3rem;">Dec</div>
+              <div style="font-size:.68rem; font-weight:700; color:var(--muted);">₹1,200</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+              <div style="background:var(--accent2); border-radius:4px 4px 0 0; width:100%; height:40%;" title="₹872"></div>
+              <div style="font-size:.68rem; color:var(--muted); margin-top:.3rem;">Jan</div>
+              <div style="font-size:.68rem; font-weight:700; color:var(--muted);">₹872</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+              <div style="background:var(--accent2); border-radius:4px 4px 0 0; width:100%; height:35%;" title="₹752"></div>
+              <div style="font-size:.68rem; color:var(--muted); margin-top:.3rem;">Feb</div>
+              <div style="font-size:.68rem; font-weight:700; color:var(--muted);">₹752</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+              <div style="background:var(--accent3); border-radius:4px 4px 0 0; width:100%; height:78%;" title="₹1,680"></div>
+              <div style="font-size:.68rem; color:var(--muted); margin-top:.3rem;">Mar</div>
+              <div style="font-size:.68rem; font-weight:700; color:var(--accent3);">₹1,680</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
+              <div style="background:var(--accent); border-radius:4px 4px 0 0; width:100%; height:22%;" title="₹480"></div>
+              <div style="font-size:.68rem; color:var(--muted); margin-top:.3rem;">Apr</div>
+              <div style="font-size:.68rem; font-weight:700; color:var(--accent);">₹480</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:1.2rem; font-size:.78rem; color:var(--muted); margin-top:.5rem;">
+            <span>🟦 Previous months</span><span style="color:var(--accent3);">🟩 Best month (Mar)</span><span style="color:var(--accent);">🟨 Current month</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Breakdown by Trigger</div>
+          <div style="display:flex; flex-direction:column; gap:.8rem; margin-top:.5rem;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.3rem;">
+                <span>🌧️ Rain</span><span style="font-weight:700;">₹1,568 (48%)</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:48%; background:var(--accent2);"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.3rem;">
+                <span>🚧 Curfew</span><span style="font-weight:700;">₹1,352 (42%)</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:42%; background:var(--danger);"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.3rem;">
+                <span>🌡️ Heat</span><span style="font-weight:700;">₹1,000 (31%)</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:31%; background:var(--accent);"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.3rem;">
+                <span>😷 AQI</span><span style="font-weight:700;">₹320 (10%)</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:10%; background:#8b5cf6;"></div></div>
+            </div>
+          </div>
+          <div style="margin-top:1.2rem; font-size:.78rem; color:var(--muted); padding:.8rem; background:var(--surface); border-radius:8px;">
+            💡 Rain is your highest risk factor — Pro Shield covers all events optimally.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Tax Summary — FY 2025–26</div>
+        <p style="font-size:.83rem; color:var(--muted); margin-bottom:1.2rem;">Insurance payouts in India are generally tax-exempt under Section 10(10D) of the Income Tax Act for personal policies. Consult your CA for gig-worker-specific guidance.</p>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; margin-bottom:1rem;">
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+            <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem; color:var(--accent3);">₹3,240</div>
+            <div style="font-size:.75rem; color:var(--muted); margin-top:.3rem;">Total Received</div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+            <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem; color:var(--accent);">₹1,155</div>
+            <div style="font-size:.75rem; color:var(--muted); margin-top:.3rem;">Total Premiums Paid</div>
+          </div>
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center;">
+            <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem; color:var(--accent3);">₹2,085</div>
+            <div style="font-size:.75rem; color:var(--muted); margin-top:.3rem;">Net Benefit</div>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="downloadStatement()">⬇️ Download Tax Statement (PDF)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Withdraw Modal -->
+<div id="withdraw-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:2rem; max-width:440px; width:90%; animation:fadeUp .3s ease;">
+    <h2 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:.5rem;">Withdraw Balance</h2>
+    <p style="color:var(--muted); font-size:.85rem; margin-bottom:1.5rem;">Transfer settled claim payouts to your UPI account instantly.</p>
+    <div class="form-group" style="margin-bottom:1rem;">
+      <label>Amount</label>
+      <div class="amount-input-wrap">
+        <span>₹</span>
+        <input type="number" placeholder="Enter amount" id="modal-amount" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:1.5rem;">
+      <label>Destination</label>
+      <select>
+        <option>UPI — ravi@upi (Primary)</option>
+        <option>Bank — HDFC ••••3821</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:.7rem;">
+      <button class="btn-primary" style="flex:1;" onclick="confirmWithdraw()">Confirm Withdraw →</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast">✅ Action successful</div>
+
+<script>
+// ─── Data ───
+const payoutsData = [
+  { id: 'PAY-2026-0487', claimId: 'CLM-2026-0487', date: 'Apr 3, 2026', time: '14:34:21', type: 'rain', trigger: '🌧️ Heavy Rain', amount: 480, method: 'ravi@upi', speed: '1m 47s', status: 'paid' },
+  { id: 'PAY-2026-0471', claimId: 'CLM-2026-0471', date: 'Mar 26, 2026', time: '11:17:03', type: 'heat', trigger: '🌡️ Extreme Heat', amount: 600, method: 'ravi@upi', speed: '2m 03s', status: 'paid' },
+  { id: 'PAY-2026-0461', claimId: 'CLM-2026-0461', date: 'Mar 20, 2026', time: '09:03:44', type: 'rain', trigger: '🌧️ Heavy Rain', amount: 800, method: 'ravi@upi', speed: '1m 52s', status: 'paid' },
+  { id: 'PAY-2026-0441', claimId: 'CLM-2026-0441', date: 'Mar 12, 2026', time: '16:48:11', type: 'aqi', trigger: '😷 AQI Alert', amount: 320, method: 'ravi@upi', speed: '1m 31s', status: 'paid' },
+  { id: 'PAY-2026-0421', claimId: 'CLM-2026-0421', date: 'Mar 5, 2026', time: '08:33:57', type: 'heat', trigger: '🌡️ Extreme Heat', amount: 400, method: 'ravi@upi', speed: '3m 10s', status: 'paid' },
+  { id: 'PAY-2026-0401', claimId: 'CLM-2026-0401', date: 'Feb 28, 2026', time: '07:19:32', type: 'curfew', trigger: '🚧 Zone Curfew', amount: 900, method: 'ravi@upi', speed: '2m 22s', status: 'paid' },
+  { id: 'PAY-2026-0381', claimId: 'CLM-2026-0381', date: 'Feb 20, 2026', time: '13:02:18', type: 'rain', trigger: '🌧️ Heavy Rain', amount: 288, method: 'ravi@upi', speed: '1m 58s', status: 'paid' },
+  { id: 'PAY-2026-0341', claimId: 'CLM-2026-0341', date: 'Feb 8, 2026', time: '10:47:09', type: 'curfew', trigger: '🚧 Zone Curfew', amount: 452, method: 'ravi@upi', speed: '2m 14s', status: 'paid' },
+];
+
+let currentFilter = 'all';
+
+// ─── Tab switching ───
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const tabs = ['history','timeline','methods','analytics'];
+  const idx = tabs.indexOf(name);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+}
+
+// ─── Render payouts table ───
+function renderPayouts(filter) {
+  const tbody = document.getElementById('payouts-tbody');
+  const filtered = filter === 'all' ? payoutsData : payoutsData.filter(p => p.type === filter);
+  document.getElementById('filter-label').textContent = `Showing: ${filtered.length} payouts`;
+
+  tbody.innerHTML = filtered.map(p => `
+    <tr>
+      <td style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent2); font-size:.8rem;">${p.id}</td>
+      <td>
+        <div style="font-weight:600; font-size:.88rem;">${p.date}</div>
+        <div style="font-size:.75rem; color:var(--muted);">${p.time}</div>
+      </td>
+      <td>${p.trigger}</td>
+      <td style="font-size:.8rem; color:var(--muted);">${p.claimId}</td>
+      <td style="font-family:'Syne',sans-serif; font-weight:800; color:var(--accent3); font-size:1rem;">₹${p.amount.toLocaleString()}</td>
+      <td><span class="upi-chip">📱 ${p.method}</span></td>
+      <td style="color:var(--accent3); font-weight:600; font-size:.85rem;">${p.speed}</td>
+      <td><span class="badge active">✓ Paid</span></td>
+    </tr>
+  `).join('');
+}
+
+function filterPayouts(type, el) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderPayouts(type);
+}
+
+// ─── Render timeline ───
+function renderTimeline() {
+  const tl = document.getElementById('payout-timeline');
+  tl.innerHTML = payoutsData.map((p, i) => `
+    <div class="tl-item">
+      <div class="tl-dot paid"></div>
+      <div class="tl-time">${p.date} · ${p.time}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="tl-title">${p.trigger}</div>
+        <div class="tl-amount">₹${p.amount.toLocaleString()}</div>
+      </div>
+      <div class="tl-desc">Processed in ${p.speed} · via ${p.method} · ${p.claimId}</div>
+    </div>
+  `).join('');
+}
+
+// ─── Modals / Actions ───
+function openWithdrawModal() {
+  const modal = document.getElementById('withdraw-modal');
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('withdraw-modal').style.display = 'none';
+}
+
+function confirmWithdraw() {
+  const amt = document.getElementById('modal-amount').value;
+  if (!amt || amt <= 0) { showToast('⚠️ Please enter a valid amount'); return; }
+  closeModal();
+  showToast(`✅ ₹${Number(amt).toLocaleString()} withdrawal initiated → ravi@upi (arrives in ~2 min)`);
+}
+
+function initiateWithdraw() {
+  const amt = document.getElementById('withdraw-amount').value;
+  if (!amt || amt <= 0) { showToast('⚠️ Please enter a valid amount'); return; }
+  showToast(`✅ ₹${Number(amt).toLocaleString()} sent → ravi@upi successfully`);
+}
+
+function changeUPI() { showToast('🔗 UPI change flow — connect to banking API in production'); }
+function editUPI() { showToast('✏️ Redirecting to UPI edit flow...'); }
+function setPrimary() { showToast('✅ HDFC Bank set as primary payout method'); }
+function removeMethod() { if(confirm('Remove HDFC ••••3821 as a payment method?')) showToast('🗑️ Payment method removed'); }
+function addMethod() { showToast('➕ Connect additional UPI ID or bank account'); }
+function testPayout() { showToast('💸 ₹1 test transfer sent to ravi@upi — check your UPI app'); }
+
+function exportCSV() {
+  const header = 'Payout ID,Date,Trigger,Claim ID,Amount,Method,Speed,Status';
+  const rows = payoutsData.map(p => `${p.id},${p.date} ${p.time},${p.trigger.replace(',','')},${p.claimId},${p.amount},${p.method},${p.speed},Paid`);
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'gigshield_payouts.csv'; a.click();
+  showToast('⬇️ CSV downloaded successfully');
+}
+
+function downloadStatement() { showToast('📄 Tax statement PDF generated — downloading...'); }
+
+// ─── Toast ───
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+// ─── Init ───
+renderPayouts('all');
+renderTimeline();
+</script>
+</body>
+</html>

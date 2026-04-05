@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GigShield — Register & Get Covered</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0f1e; --surface: #111827; --card: #161f30;
+      --border: #1e2d42; --accent: #f59e0b; --accent2: #3b82f6;
+      --accent3: #10b981; --danger: #ef4444;
+      --text: #f1f5f9; --muted: #94a3b8;
+    }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .page { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+
+    /* Left panel */
+    .left-panel {
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 3rem; display: flex; flex-direction: column;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; }
+    .logo span { color: var(--accent); }
+    .logo a { text-decoration: none; color: inherit; }
+
+    .left-content { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .left-content h1 {
+      font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800;
+      letter-spacing: -.5px; margin-top: 2rem; line-height: 1.15;
+    }
+    .left-content h1 em { color: var(--accent); font-style: normal; }
+    .left-content p { color: var(--muted); margin-top: .8rem; line-height: 1.7; font-size: .95rem; }
+
+    .trust-items { margin-top: 2.5rem; display: flex; flex-direction: column; gap: .8rem; }
+    .trust-item {
+      display: flex; align-items: center; gap: .8rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: .9rem 1.1rem;
+    }
+    .trust-item .ti-icon { font-size: 1.3rem; }
+    .trust-item .ti-text { font-size: .88rem; }
+    .trust-item .ti-text strong { display: block; font-weight: 600; }
+    .trust-item .ti-text span { color: var(--muted); font-size: .8rem; }
+
+    /* Steps indicator */
+    .steps-indicator {
+      display: flex; align-items: center; gap: .5rem; margin-bottom: 1.5rem;
+    }
+    .si-step {
+      display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted);
+    }
+    .si-dot {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .7rem; font-weight: 700;
+      background: var(--border); color: var(--muted);
+      transition: all .3s;
+    }
+    .si-dot.active { background: var(--accent); color: #000; }
+    .si-dot.done { background: var(--accent3); color: #fff; }
+    .si-line { flex: 1; height: 1px; background: var(--border); max-width: 40px; }
+
+    /* Right panel - form */
+    .right-panel { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+    .form-step { display: none; }
+    .form-step.active { display: block; animation: fadeIn .35s ease; }
+
+    @keyframes fadeIn { from { opacity:0; transform: translateX(16px); } to { opacity:1; transform:none; } }
+
+    .step-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.7rem; margin-bottom: .4rem; }
+    .step-sub { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
+
+    .form-group { margin-bottom: 1.2rem; }
+    .form-group label { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: .4rem; text-transform: uppercase; letter-spacing: .05em; }
+    .form-group input, .form-group select {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: .85rem 1rem;
+      color: var(--text); font-size: .95rem; font-family: 'DM Sans', sans-serif;
+      outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group select { appearance: none; cursor: pointer; }
+    .form-group select option { background: var(--card); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; margin-top: .5rem; }
+    .platform-btn {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 10px; padding: .8rem; text-align: center;
+      cursor: pointer; transition: all .2s; user-select: none;
+    }
+    .platform-btn:hover { border-color: var(--muted); }
+    .platform-btn.selected { border-color: var(--accent); background: rgba(245,158,11,0.08); }
+    .platform-btn .pf-emoji { font-size: 1.5rem; display: block; margin-bottom: .3rem; }
+    .platform-btn .pf-name { font-size: .78rem; font-weight: 600; }
+
+    .plan-grid { display: flex; flex-direction: column; gap: .8rem; margin-top: .5rem; }
+    .plan-option {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 12px; padding: 1.2rem;
+      cursor: pointer; transition: all .2s; display: flex; justify-content: space-between; align-items: center;
+    }
+    .plan-option:hover { border-color: var(--muted); }
+    .plan-option.selected { border-color: var(--accent); background: rgba(245,158,11,0.06); }
+    .plan-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+    .plan-detail { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+    .plan-price { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--accent); }
+    .plan-price small { font-family: 'DM Sans', sans-serif; font-size: .7rem; color: var(--muted); display: block; text-align: right; }
+
+    .risk-score-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .rs-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .rs-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; }
+    .rs-score {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.8rem;
+      color: var(--accent3);
+    }
+    .rs-bar-bg { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .rs-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent3), var(--accent2)); transition: width 1s ease; }
+    .rs-factors { margin-top: 1rem; display: flex; flex-direction: column; gap: .5rem; }
+    .rs-factor { display: flex; justify-content: space-between; font-size: .82rem; }
+    .rs-factor span:first-child { color: var(--muted); }
+    .rs-factor span:last-child { color: var(--text); font-weight: 500; }
+
+    .payout-option { display: flex; flex-direction: column; gap: .7rem; margin-top: .5rem; }
+    .payout-btn {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.2rem;
+      cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 1rem;
+    }
+    .payout-btn:hover { border-color: var(--muted); }
+    .payout-btn.selected { border-color: var(--accent3); background: rgba(16,185,129,0.06); }
+    .payout-icon { font-size: 1.5rem; }
+    .payout-name { font-weight: 600; font-size: .95rem; }
+    .payout-detail { font-size: .8rem; color: var(--muted); }
+
+    /* SUCCESS */
+    .success-screen {
+      text-align: center; display: none; animation: fadeIn .5s ease;
+    }
+    .success-screen.show { display: block; }
+    .success-icon { font-size: 4rem; margin-bottom: 1rem; }
+    .success-screen h2 { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: .5rem; }
+    .success-screen p { color: var(--muted); margin-bottom: 2rem; line-height: 1.7; }
+    .policy-card {
+      background: var(--card); border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 16px; padding: 1.5rem; text-align: left; margin-bottom: 1.5rem;
+    }
+    .policy-id { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--accent); }
+    .policy-details { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: 1rem; }
+    .policy-detail-item span:first-child { font-size: .75rem; color: var(--muted); display: block; }
+    .policy-detail-item span:last-child { font-size: .9rem; font-weight: 600; }
+
+    .btn-next, .btn-back, .btn-submit {
+      padding: .9rem 2rem; border-radius: 10px; font-weight: 700;
+      font-size: .95rem; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif;
+      transition: all .2s;
+    }
+    .btn-next, .btn-submit {
+      background: var(--accent); color: #000;
+      box-shadow: 0 4px 20px rgba(245,158,11,0.25);
+    }
+    .btn-next:hover, .btn-submit:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-back { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-back:hover { color: var(--text); border-color: var(--muted); }
+    .form-actions { display: flex; gap: 1rem; margin-top: 2rem; align-items: center; }
+
+    @media (max-width: 768px) {
+      .page { grid-template-columns: 1fr; }
+      .left-panel { display: none; }
+      .right-panel { padding: 2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="logo"><a href="index.html">Gig<span>Shield</span></a></div>
+    <div class="left-content">
+      <h1>Income protection for <em>real</em> gig workers.</h1>
+      <p>Set up in under 5 minutes. Get covered this week. When disruptions hit, your payout comes automatically — no forms, no calls.</p>
+      <div class="trust-items">
+        <div class="trust-item">
+          <div class="ti-icon">🤖</div>
+          <div class="ti-text">
+            <strong>AI Risk Profiling</strong>
+            <span>Your premium adapts to your zone's actual risk each week</span>
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="ti-icon">⚡</div>
+          <div class="ti-text">
+            <strong>Zero-Touch Claims</strong>
+            <span>Parametric triggers auto-approve — no manual filing needed</span>
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="ti-icon">💸</div>
+          <div class="ti-text">
+            <strong>Instant UPI Payout</strong>
+            <span>Lost wages back in your account in under 2 minutes</span>
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="ti-icon">🛡️</div>
+          <div class="ti-text">
+            <strong>Anti-Fraud Protection</strong>
+            <span>Multi-layer GPS & claim validation protects the honest worker</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- Steps indicator -->
+    <div class="steps-indicator">
+      <div class="si-step">
+        <div class="si-dot active" id="dot-1">1</div>
+        <span style="font-size:.78rem; color:var(--muted)">Profile</span>
+      </div>
+      <div class="si-line"></div>
+      <div class="si-step">
+        <div class="si-dot" id="dot-2">2</div>
+        <span style="font-size:.78rem; color:var(--muted)">Platform</span>
+      </div>
+      <div class="si-line"></div>
+      <div class="si-step">
+        <div class="si-dot" id="dot-3">3</div>
+        <span style="font-size:.78rem; color:var(--muted)">Risk Score</span>
+      </div>
+      <div class="si-line"></div>
+      <div class="si-step">
+        <div class="si-dot" id="dot-4">4</div>
+        <span style="font-size:.78rem; color:var(--muted)">Plan</span>
+      </div>
+      <div class="si-line"></div>
+      <div class="si-step">
+        <div class="si-dot" id="dot-5">5</div>
+        <span style="font-size:.78rem; color:var(--muted)">Payout</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: Basic Profile -->
+    <div class="form-step active" id="step-1">
+      <div class="step-title">Your Profile</div>
+      <div class="step-sub">We use this to verify you're an active delivery partner.</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="fname" placeholder="Ravi" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="lname" placeholder="Kumar" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mobile Number</label>
+        <input type="tel" id="phone" placeholder="+91 98765 43210" />
+      </div>
+      <div class="form-group">
+        <label>City</label>
+        <select id="city">
+          <option value="">Select your city</option>
+          <option>Mumbai</option><option>Delhi NCR</option><option>Bengaluru</option>
+          <option>Hyderabad</option><option>Chennai</option><option>Pune</option>
+          <option>Kolkata</option><option>Ahmedabad</option><option>Guntur</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Years as Delivery Partner</label>
+        <select id="experience">
+          <option value="">Select experience</option>
+          <option>&lt; 6 months</option><option>6–12 months</option>
+          <option>1–2 years</option><option>3+ years</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-next" onclick="goToStep(2)">Next: Choose Platform →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Platform & Zone -->
+    <div class="form-step" id="step-2">
+      <div class="step-title">Your Platform</div>
+      <div class="step-sub">Which delivery platform are you primarily registered with?</div>
+      <div class="form-group">
+        <label>Delivery Platform</label>
+        <div class="platform-grid">
+          <div class="platform-btn" onclick="selectPlatform(this,'food')">
+            <span class="pf-emoji">🍔</span><div class="pf-name">Zomato</div>
+          </div>
+          <div class="platform-btn" onclick="selectPlatform(this,'food')">
+            <span class="pf-emoji">🛵</span><div class="pf-name">Swiggy</div>
+          </div>
+          <div class="platform-btn" onclick="selectPlatform(this,'grocery')">
+            <span class="pf-emoji">⚡</span><div class="pf-name">Zepto</div>
+          </div>
+          <div class="platform-btn" onclick="selectPlatform(this,'grocery')">
+            <span class="pf-emoji">🟢</span><div class="pf-name">Blinkit</div>
+          </div>
+          <div class="platform-btn" onclick="selectPlatform(this,'ecom')">
+            <span class="pf-emoji">📦</span><div class="pf-name">Amazon</div>
+          </div>
+          <div class="platform-btn" onclick="selectPlatform(this,'ecom')">
+            <span class="pf-emoji">🛒</span><div class="pf-name">Flipkart</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Your Delivery Partner ID</label>
+        <input type="text" id="partner-id" placeholder="e.g., ZMT-2024-XXXXX" />
+      </div>
+      <div class="form-group">
+        <label>Average Weekly Earnings (₹)</label>
+        <select id="weekly-earn">
+          <option value="">Select range</option>
+          <option value="2000">₹1,000 – ₹2,000</option>
+          <option value="4000">₹2,000 – ₹4,000</option>
+          <option value="6000">₹4,000 – ₹6,000</option>
+          <option value="8000">₹6,000+</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(1)">← Back</button>
+        <button class="btn-next" onclick="goToStep(3)">Next: Risk Assessment →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: AI Risk Score -->
+    <div class="form-step" id="step-3">
+      <div class="step-title">Your Risk Profile</div>
+      <div class="step-sub">Our AI has analyzed your zone, platform, and history to compute a personalized risk score.</div>
+      <div class="risk-score-box">
+        <div class="rs-header">
+          <div class="rs-title">🤖 AI Risk Score</div>
+          <div class="rs-score" id="rs-display">72 / 100</div>
+        </div>
+        <div class="rs-bar-bg">
+          <div class="rs-bar-fill" id="rs-bar" style="width:72%"></div>
+        </div>
+        <div class="rs-factors">
+          <div class="rs-factor"><span>Zone Flood History</span><span>Moderate Risk</span></div>
+          <div class="rs-factor"><span>Monsoon Season Proximity</span><span>3 months away</span></div>
+          <div class="rs-factor"><span>AQI Historical Average</span><span>Good (72)</span></div>
+          <div class="rs-factor"><span>Platform Outage History</span><span>Low (1.2%)</span></div>
+          <div class="rs-factor"><span>Worker Tenure Score</span><span>+8 pts (trusted)</span></div>
+        </div>
+      </div>
+      <p style="font-size:.85rem; color:var(--muted); line-height:1.65;">Your risk score dynamically updates every week based on weather forecasts, zone history, and your delivery activity. Lower risk = lower premium next week.</p>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(2)">← Back</button>
+        <button class="btn-next" onclick="goToStep(4)">Choose Your Plan →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Plan Selection -->
+    <div class="form-step" id="step-4">
+      <div class="step-title">Choose Your Plan</div>
+      <div class="step-sub">Weekly plans — cancel or upgrade anytime.</div>
+      <div class="plan-grid">
+        <div class="plan-option" onclick="selectPlan(this,'essential',49,500)">
+          <div>
+            <div class="plan-name">Essential Shield</div>
+            <div class="plan-detail">Rain + Heat triggers · ₹500/week coverage</div>
+          </div>
+          <div class="plan-price">₹49<small>/week</small></div>
+        </div>
+        <div class="plan-option selected" onclick="selectPlan(this,'pro',99,1200)">
+          <div>
+            <div class="plan-name">Pro Shield ⭐ Recommended</div>
+            <div class="plan-detail">All 5 triggers · ₹1,200/week coverage · AI pricing</div>
+          </div>
+          <div class="plan-price">₹99<small>/week</small></div>
+        </div>
+        <div class="plan-option" onclick="selectPlan(this,'max',149,2000)">
+          <div>
+            <div class="plan-name">Max Shield</div>
+            <div class="plan-detail">All features + priority payout · ₹2,000/week</div>
+          </div>
+          <div class="plan-price">₹149<small>/week</small></div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(3)">← Back</button>
+        <button class="btn-next" onclick="goToStep(5)">Next: Set Payout →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Payout Setup -->
+    <div class="form-step" id="step-5">
+      <div class="step-title">Payout Setup</div>
+      <div class="step-sub">How should we send your lost wages when a claim is approved?</div>
+      <div class="form-group">
+        <label>Preferred Payout Method</label>
+        <div class="payout-option">
+          <div class="payout-btn selected" onclick="selectPayout(this)">
+            <div class="payout-icon">📲</div>
+            <div><div class="payout-name">UPI / GPay / PhonePe</div><div class="payout-detail">Instant · 0 fee · Recommended</div></div>
+          </div>
+          <div class="payout-btn" onclick="selectPayout(this)">
+            <div class="payout-icon">🏦</div>
+            <div><div class="payout-name">Bank Transfer (IMPS)</div><div class="payout-detail">Within 2 hours · 0 fee</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>UPI ID / Bank Account Number</label>
+        <input type="text" id="upi" placeholder="yourname@upi" />
+      </div>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(4)">← Back</button>
+        <button class="btn-submit" onclick="submitForm()">Activate Coverage 🛡️</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="success-screen" id="success">
+      <div class="success-icon">🎉</div>
+      <h2>You're covered!</h2>
+      <p>Your GigShield policy is now active. The moment a parametric trigger fires in your zone, we'll send your payout automatically — no action needed from you.</p>
+      <div class="policy-card">
+        <div style="font-size:.75rem; color:var(--muted); margin-bottom:.3rem;">Policy ID</div>
+        <div class="policy-id" id="policy-id">GSP-2026-XXXXXX</div>
+        <div class="policy-details">
+          <div class="policy-detail-item">
+            <span>Coverage Starts</span>
+            <span id="start-date">—</span>
+          </div>
+          <div class="policy-detail-item">
+            <span>Coverage Period</span>
+            <span>7 Days</span>
+          </div>
+          <div class="policy-detail-item">
+            <span>Weekly Premium</span>
+            <span id="policy-premium">₹99</span>
+          </div>
+          <div class="policy-detail-item">
+            <span>Max Payout</span>
+            <span id="policy-cover">₹1,200</span>
+          </div>
+        </div>
+      </div>
+      <a href="dashboard.html" style="display:inline-block; background:var(--accent); color:#000; padding:.9rem 2.2rem; border-radius:10px; font-weight:700; text-decoration:none;">View My Dashboard →</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let selectedPlan = { name: 'pro', price: 99, cover: 1200 };
+  let currentStep = 1;
+
+  function goToStep(n) {
+    document.getElementById('step-' + currentStep).classList.remove('active');
+    document.getElementById('dot-' + currentStep).classList.remove('active');
+    document.getElementById('dot-' + currentStep).classList.add('done');
+    document.getElementById('dot-' + currentStep).textContent = '✓';
+    currentStep = n;
+    document.getElementById('step-' + n).classList.add('active');
+    document.getElementById('dot-' + n).classList.add('active');
+    document.getElementById('dot-' + n).classList.remove('done');
+    document.getElementById('dot-' + n).textContent = n;
+  }
+
+  function selectPlatform(el, type) {
+    document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    // Adjust risk score based on platform type
+    const scores = { food: 72, grocery: 65, ecom: 58 };
+    const score = scores[type] || 72;
+    document.getElementById('rs-display').textContent = score + ' / 100';
+    document.getElementById('rs-bar').style.width = score + '%';
+  }
+
+  function selectPlan(el, name, price, cover) {
+    document.querySelectorAll('.plan-option').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedPlan = { name, price, cover };
+  }
+
+  function selectPayout(el) {
+    document.querySelectorAll('.payout-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function submitForm() {
+    document.getElementById('step-5').classList.remove('active');
+    const success = document.getElementById('success');
+    success.classList.add('show');
+    // Generate policy details
+    const policyId = 'GSP-2026-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    document.getElementById('policy-id').textContent = policyId;
+    document.getElementById('policy-premium').textContent = '₹' + selectedPlan.price;
+    document.getElementById('policy-cover').textContent = '₹' + selectedPlan.cover.toLocaleString();
+    const today = new Date();
+    document.getElementById('start-date').textContent = today.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    // Mark all dots done
+    for(let i=1;i<=5;i++){
+      document.getElementById('dot-'+i).classList.add('done');
+      document.getElementById('dot-'+i).textContent = '✓';
+      document.getElementById('dot-'+i).classList.remove('active');
+    }
+  }
+</script>
+</body>
+</html>

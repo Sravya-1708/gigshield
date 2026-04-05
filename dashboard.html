@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GigShield — Worker Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0f1e; --surface: #111827; --card: #161f30;
+  --border: #1e2d42; --accent: #f59e0b; --accent2: #3b82f6;
+  --accent3: #10b981; --danger: #ef4444;
+  --text: #f1f5f9; --muted: #94a3b8;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+.layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 1.5rem; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; margin-bottom: 2rem; }
+.logo span { color: var(--accent); }
+.nav-section { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; margin: 1.2rem 0 .5rem; }
+.nav-item {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .7rem .9rem; border-radius: 8px; cursor: pointer;
+  font-size: .88rem; color: var(--muted); transition: all .2s;
+  text-decoration: none; margin-bottom: .2rem;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active { background: rgba(245,158,11,0.1); color: var(--accent); }
+.nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+.sidebar-footer { margin-top: auto; padding-top: 1rem; }
+.worker-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: .9rem;
+}
+.worker-name { font-weight: 700; font-size: .9rem; }
+.worker-plan { font-size: .75rem; color: var(--accent); margin-top: .2rem; }
+.worker-status { display: flex; align-items: center; gap: .4rem; font-size: .75rem; color: var(--accent3); margin-top: .4rem; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+.main { padding: 2rem; overflow-y: auto; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+.topbar h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.6rem; }
+.topbar-right { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.alert-chip {
+  display: flex; align-items: center; gap: .5rem;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  color: var(--danger); padding: .45rem 1rem; border-radius: 99px;
+  font-size: .78rem; font-weight: 700; animation: blink 1.5s infinite;
+}
+.safe-chip {
+  display: flex; align-items: center; gap: .5rem;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
+  color: var(--accent3); padding: .45rem 1rem; border-radius: 99px;
+  font-size: .78rem; font-weight: 700;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.metric-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 1.3rem;
+}
+.metric-card.highlight { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.05); }
+.metric-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
+.metric-val { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.metric-val.green { color: var(--accent3); }
+.metric-val.amber { color: var(--accent); }
+.metric-val.blue { color: var(--accent2); }
+.metric-val.red { color: var(--danger); }
+.metric-sub { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+.grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 1.4rem;
+}
+.card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center; }
+.badge { padding: .25rem .7rem; border-radius: 6px; font-size: .72rem; font-weight: 700; }
+.badge.active { background: rgba(16,185,129,.1); color: var(--accent3); }
+.badge.warning { background: rgba(245,158,11,.1); color: var(--accent); }
+.badge.danger { background: rgba(239,68,68,.1); color: var(--danger); }
+.policy-status {
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.2);
+  border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1rem;
+}
+.ps-left { display: flex; align-items: center; gap: .8rem; }
+.ps-icon { font-size: 1.5rem; }
+.ps-title { font-weight: 700; font-size: .95rem; }
+.ps-sub { font-size: .78rem; color: var(--muted); }
+.ps-amount { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--accent3); }
+.trigger-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .7rem 0; border-bottom: 1px solid var(--border); font-size: .88rem;
+}
+.trigger-row:last-child { border-bottom: none; }
+.trigger-name { display: flex; align-items: center; gap: .6rem; }
+.trigger-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; }
+.trigger-val.safe { color: var(--accent3); }
+.trigger-val.warn { color: var(--accent); }
+.trigger-val.alert { color: var(--danger); }
+.trigger-threshold-label { font-size: .72rem; color: var(--muted); }
+.alert-banner {
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3);
+  border-radius: 12px; padding: 1.2rem 1.5rem; margin-bottom: 1.5rem;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+}
+.alert-banner.hidden { display: none; }
+.ab-left { display: flex; align-items: center; gap: 1rem; }
+.ab-icon { font-size: 2rem; }
+.ab-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; color: var(--danger); }
+.ab-desc { font-size: .85rem; color: var(--muted); margin-top: .2rem; }
+.btn-claim {
+  background: var(--danger); color: #fff; padding: .65rem 1.4rem;
+  border-radius: 8px; font-weight: 700; font-size: .88rem;
+  border: none; cursor: pointer; transition: opacity .2s; white-space: nowrap;
+}
+.btn-claim:hover { opacity: .85; }
+.claims-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.claims-table th { text-align: left; color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; padding: .4rem 0 .8rem; border-bottom: 1px solid var(--border); }
+.claims-table td { padding: .75rem 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.claims-table tr:last-child td { border-bottom: none; }
+.coverage-bar-wrap { margin-top: .8rem; }
+.coverage-label { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-bottom: .4rem; }
+.bar-bg { height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 99px; }
+.chart { display: flex; align-items: flex-end; gap: .4rem; height: 80px; margin-top: 1rem; }
+.bar { flex: 1; border-radius: 4px 4px 0 0; transition: opacity .2s; }
+.bar:hover { opacity: .7; }
+.chart-labels { display: flex; gap: .4rem; margin-top: .4rem; }
+.chart-labels span { flex: 1; text-align: center; font-size: .68rem; color: var(--muted); }
+.api-status { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--muted); margin-bottom: 1rem; }
+.api-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); }
+.loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+.tab-bar { display: flex; gap: .5rem; margin-bottom: 2rem; background: var(--surface); border-radius: 10px; padding: .3rem; width: fit-content; }
+.tab-btn { padding: .5rem 1.2rem; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 600; color: var(--muted); background: none; border: none; transition: all .2s; }
+.tab-btn.active { background: var(--card); color: var(--text); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.premium-breakdown { background: rgba(59,130,246,.05); border: 1px solid rgba(59,130,246,.2); border-radius: 10px; padding: 1rem; margin-top: 1rem; }
+.pb-row { display: flex; justify-content: space-between; font-size: .85rem; padding: .4rem 0; }
+.pb-row span:first-child { color: var(--muted); }
+.pb-row.total { border-top: 1px solid var(--border); margin-top: .4rem; padding-top: .8rem; font-weight: 700; }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); padding: .6rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; transition: all .2s; }
+.btn-secondary:hover { border-color: var(--muted); }
+.btn-primary { background: var(--accent); color: #000; padding: .7rem 1.4rem; border-radius: 8px; font-weight: 700; font-size: .88rem; border: none; cursor: pointer; transition: all .2s; }
+.btn-primary:hover { opacity: .88; }
+@media (max-width:900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="logo">Gig<span>Shield</span></div>
+    <div class="nav-section">Main</div>
+    <a href="dashboard.html" class="nav-item active"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="policy.html" class="nav-item"><span class="nav-icon">🛡️</span> My Policy</a>
+    <a href="claims.html" class="nav-item"><span class="nav-icon">📋</span> Claims</a>
+    <a href="payouts.html" class="nav-item"><span class="nav-icon">💸</span> Payouts</a>
+    <div class="nav-section">Tools</div>
+    <a href="premium-engine.html" class="nav-item"><span class="nav-icon">🤖</span> Premium Engine</a>
+    <a href="#" class="nav-item"><span class="nav-icon">📊</span> Earnings</a>
+    <a href="#" class="nav-item"><span class="nav-icon">⚙️</span> Settings</a>
+    <a href="index.html" class="nav-item"><span class="nav-icon">←</span> Back to Home</a>
+    <div class="sidebar-footer">
+      <div class="worker-card">
+        <div class="worker-name" id="sb-name">Ravi Kumar</div>
+        <div class="worker-plan">Pro Shield · Week 14</div>
+        <div class="worker-status"><span class="dot"></span> Policy Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Good morning, Ravi 👋</h1>
+        <p style="color:var(--muted); font-size:.88rem; margin-top:.2rem;" id="location-line">
+          Hyderabad Zone 3 · Zomato Partner · Pro Shield Active
+        </p>
+      </div>
+      <div class="topbar-right">
+        <div class="api-status">
+          <span class="api-dot"></span>
+          <span id="api-status-text">Fetching live data...</span>
+        </div>
+        <div id="alert-chip" class="safe-chip">✅ All Clear</div>
+      </div>
+    </div>
+
+    <!-- LIVE ALERT BANNER (shown when trigger fires) -->
+    <div class="alert-banner hidden" id="alert-banner">
+      <div class="ab-left">
+        <div class="ab-icon" id="ab-icon">🌧️</div>
+        <div>
+          <div class="ab-title" id="ab-title">Trigger Detected</div>
+          <div class="ab-desc" id="ab-desc">Loading...</div>
+        </div>
+      </div>
+      <button class="btn-claim" onclick="openClaim()">File Zero-Touch Claim →</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab-btn" onclick="switchTab('triggers')">Live Triggers</button>
+      <button class="tab-btn" onclick="switchTab('policy')">Policy</button>
+      <button class="tab-btn" onclick="switchTab('claims')">Claims</button>
+    </div>
+
+    <!-- TAB: OVERVIEW -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="metrics">
+        <div class="metric-card highlight">
+          <div class="metric-label">Protected This Week</div>
+          <div class="metric-val amber">₹1,200</div>
+          <div class="metric-sub">Max payout · Pro Shield</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Claimed This Week</div>
+          <div class="metric-val green">₹480</div>
+          <div class="metric-sub">Rain trigger · 2.5 hrs</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Weekly Premium</div>
+          <div class="metric-val blue" id="ov-premium">₹99</div>
+          <div class="metric-sub">AI-adjusted · renews Sunday</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Saved (Lifetime)</div>
+          <div class="metric-val green">₹3,240</div>
+          <div class="metric-sub">8 claims · 14 weeks active</div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+          <div class="card">
+            <div class="card-title">Active Policy <span class="badge active">Active</span></div>
+            <div class="policy-status">
+              <div class="ps-left">
+                <div class="ps-icon">🛡️</div>
+                <div>
+                  <div class="ps-title">Pro Shield</div>
+                  <div class="ps-sub">Expires: Apr 10, 2026 · GSP-2026-A4R8K2</div>
+                </div>
+              </div>
+              <div class="ps-amount">₹1,200</div>
+            </div>
+            <div class="coverage-bar-wrap">
+              <div class="coverage-label"><span>Coverage Used</span><span>₹480 / ₹1,200</span></div>
+              <div class="bar-bg"><div class="bar-fill" style="width:40%; background: linear-gradient(90deg, var(--accent2), var(--accent3));"></div></div>
+            </div>
+            <div style="margin-top:1rem; display:flex; gap:.7rem;">
+              <a href="policy.html" class="btn-secondary" style="text-decoration:none; font-size:.8rem; padding:.5rem 1rem;">Manage Policy</a>
+              <a href="claims.html" class="btn-primary" style="text-decoration:none; font-size:.8rem; padding:.5rem 1rem;">View Claims</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Claims History</div>
+            <table class="claims-table">
+              <thead><tr>
+                <th>Date</th><th>Trigger</th><th>Amount</th><th>Status</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td>Apr 3</td><td>🌧️ Heavy Rain</td>
+                  <td style="color:var(--accent3); font-weight:700;">₹480</td>
+                  <td><span class="badge active">Paid</span></td>
+                </tr>
+                <tr>
+                  <td>Mar 26</td><td>🌡️ Extreme Heat</td>
+                  <td style="color:var(--accent3); font-weight:700;">₹600</td>
+                  <td><span class="badge active">Paid</span></td>
+                </tr>
+                <tr>
+                  <td>Mar 12</td><td>😷 AQI Alert</td>
+                  <td style="color:var(--accent3); font-weight:700;">₹320</td>
+                  <td><span class="badge active">Paid</span></td>
+                </tr>
+                <tr>
+                  <td>Feb 28</td><td>🚧 Zone Curfew</td>
+                  <td style="color:var(--accent3); font-weight:700;">₹900</td>
+                  <td><span class="badge active">Paid</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+          <div class="card">
+            <div class="card-title">Live Triggers · Zone 3</div>
+            <div id="triggers-mini">
+              <div class="trigger-row">
+                <div class="trigger-name">🌧️ Rainfall</div>
+                <div>
+                  <div class="trigger-val" id="m-rain">— mm/hr</div>
+                  <div class="trigger-threshold-label">Threshold: 50 mm/hr</div>
+                </div>
+              </div>
+              <div class="trigger-row">
+                <div class="trigger-name">🌡️ Heat Index</div>
+                <div>
+                  <div class="trigger-val" id="m-heat">—°C</div>
+                  <div class="trigger-threshold-label">Threshold: 44°C</div>
+                </div>
+              </div>
+              <div class="trigger-row">
+                <div class="trigger-name">😷 AQI</div>
+                <div>
+                  <div class="trigger-val" id="m-aqi">—</div>
+                  <div class="trigger-threshold-label">Threshold: 300</div>
+                </div>
+              </div>
+              <div class="trigger-row">
+                <div class="trigger-name">📡 Platform API</div>
+                <div>
+                  <div class="trigger-val safe" id="m-platform">Online</div>
+                  <div class="trigger-threshold-label">No outage ✓</div>
+                </div>
+              </div>
+              <div class="trigger-row">
+                <div class="trigger-name">🚧 Zone Status</div>
+                <div>
+                  <div class="trigger-val safe" id="m-zone">Clear</div>
+                  <div class="trigger-threshold-label">No restrictions</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:1rem;">
+              <button class="btn-secondary" style="width:100%; font-size:.8rem;" onclick="switchTab('triggers'); document.querySelectorAll('.tab-btn')[1].classList.add('active'); document.querySelectorAll('.tab-btn')[0].classList.remove('active');">View Full Monitor →</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Next Week AI Forecast</div>
+            <div style="font-size:.85rem; color:var(--muted); margin-bottom:1rem;">Based on OpenMeteo 7-day forecast + zone ML model</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:.7rem; font-size:.88rem;">
+              <span>Rain probability (Mon–Fri)</span>
+              <span id="forecast-rain" style="color:var(--danger); font-weight:700;">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:.7rem; font-size:.88rem;">
+              <span>Max temp forecast</span>
+              <span id="forecast-temp" style="color:var(--accent); font-weight:700;">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:.7rem; font-size:.88rem;">
+              <span>Predicted premium (next week)</span>
+              <span id="forecast-premium" style="color:var(--accent3); font-weight:700;">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:.88rem;">
+              <span>Expected coverage</span>
+              <span style="color:var(--accent3); font-weight:700;">₹1,200</span>
+            </div>
+            <a href="premium-engine.html" style="display:block; margin-top:1rem; text-align:center; color:var(--accent); font-size:.82rem; text-decoration:none;">→ View Premium Calculation Engine</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Income Protected — Last 8 Weeks</div>
+        <div class="chart">
+          <div class="bar" style="height:40%; background:var(--accent2); opacity:.6;" title="₹480"></div>
+          <div class="bar" style="height:60%; background:var(--accent2); opacity:.7;" title="₹720"></div>
+          <div class="bar" style="height:30%; background:var(--accent2); opacity:.6;" title="₹360"></div>
+          <div class="bar" style="height:75%; background:var(--accent3); opacity:.8;" title="₹900"></div>
+          <div class="bar" style="height:55%; background:var(--accent2); opacity:.7;" title="₹660"></div>
+          <div class="bar" style="height:90%; background:var(--accent3); opacity:.9;" title="₹1080"></div>
+          <div class="bar" style="height:65%; background:var(--accent2); opacity:.7;" title="₹780"></div>
+          <div class="bar" style="height:40%; background:var(--accent); opacity:.9;" title="₹480"></div>
+        </div>
+        <div class="chart-labels">
+          <span>W7</span><span>W8</span><span>W9</span><span>W10</span>
+          <span>W11</span><span>W12</span><span>W13</span><span>W14</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: LIVE TRIGGERS -->
+    <div class="tab-content" id="tab-triggers">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">
+          🌐 Live Trigger Monitor — Hyderabad Zone 3
+          <span id="last-updated" style="font-size:.75rem; color:var(--muted); font-weight:400;">Fetching...</span>
+        </div>
+        <p style="font-size:.85rem; color:var(--muted); margin-bottom:1.5rem;">
+          Pulling real-time data from OpenMeteo (weather), mock CPCB AQI API, and platform status checks. Triggers fire automatically when thresholds are breached.
+        </p>
+
+        <!-- Trigger 1: Rainfall -->
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+            <div style="display:flex; align-items:center; gap:.8rem;">
+              <span style="font-size:1.5rem;">🌧️</span>
+              <div>
+                <div style="font-weight:700;">Heavy Rain Trigger</div>
+                <div style="font-size:.78rem; color:var(--muted);">Source: OpenMeteo precipitation_sum API</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="trigger-val" id="t-rain" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;">
+                <span class="loading-spinner"></span>
+              </div>
+              <div style="font-size:.72rem; color:var(--muted);">Threshold: &gt; 50 mm/hr</div>
+            </div>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill" id="rain-bar" style="width:0%; background: linear-gradient(90deg, #3b82f6, #ef4444);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); margin-top:.4rem;">
+            <span>0 mm/hr</span><span>Trigger: 50</span><span>100 mm/hr</span>
+          </div>
+          <div id="rain-status" style="margin-top:.8rem; font-size:.82rem; color:var(--accent3);">✓ No trigger — Clear conditions</div>
+        </div>
+
+        <!-- Trigger 2: Heat -->
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+            <div style="display:flex; align-items:center; gap:.8rem;">
+              <span style="font-size:1.5rem;">🌡️</span>
+              <div>
+                <div style="font-weight:700;">Extreme Heat Trigger</div>
+                <div style="font-size:.78rem; color:var(--muted);">Source: OpenMeteo apparent_temperature API</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="trigger-val" id="t-heat" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;">
+                <span class="loading-spinner"></span>
+              </div>
+              <div style="font-size:.72rem; color:var(--muted);">Threshold: &gt; 44°C feels-like</div>
+            </div>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill" id="heat-bar" style="width:0%; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); margin-top:.4rem;">
+            <span>20°C</span><span>Trigger: 44°C</span><span>55°C</span>
+          </div>
+          <div id="heat-status" style="margin-top:.8rem; font-size:.82rem; color:var(--accent3);">✓ No trigger — Temperature normal</div>
+        </div>
+
+        <!-- Trigger 3: AQI -->
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem;">
+            <div style="display:flex; align-items:center; gap:.8rem;">
+              <span style="font-size:1.5rem;">😷</span>
+              <div>
+                <div style="font-weight:700;">AQI Hazard Trigger</div>
+                <div style="font-size:.78rem; color:var(--muted);">Source: Mock CPCB API + OpenMeteo PM2.5</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="trigger-val" id="t-aqi" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;">
+                <span class="loading-spinner"></span>
+              </div>
+              <div style="font-size:.72rem; color:var(--muted);">Threshold: AQI &gt; 300 for 4hr avg</div>
+            </div>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill" id="aqi-bar" style="width:0%; background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); margin-top:.4rem;">
+            <span>0</span><span>Trigger: 300</span><span>500</span>
+          </div>
+          <div id="aqi-status" style="margin-top:.8rem; font-size:.82rem; color:var(--accent3);">✓ No trigger — Air quality acceptable</div>
+        </div>
+
+        <!-- Trigger 4: Platform Outage -->
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:.8rem;">
+              <span style="font-size:1.5rem;">📡</span>
+              <div>
+                <div style="font-weight:700;">Platform Outage Trigger</div>
+                <div style="font-size:.78rem; color:var(--muted);">Source: Mock Zomato/Swiggy status API ping</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="trigger-val safe" id="t-platform" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;">Online</div>
+              <div style="font-size:.72rem; color:var(--muted);">Threshold: &gt; 90 min downtime</div>
+            </div>
+          </div>
+          <div id="platform-status" style="margin-top:.8rem; font-size:.82rem; color:var(--accent3);">✓ No trigger — All platforms operational</div>
+        </div>
+
+        <!-- Trigger 5: Zone Curfew -->
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:.8rem;">
+              <span style="font-size:1.5rem;">🚧</span>
+              <div>
+                <div style="font-weight:700;">Zone Curfew / Strike Trigger</div>
+                <div style="font-size:.78rem; color:var(--muted);">Source: Mock Govt. Advisory API + news verification</div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="trigger-val safe" id="t-zone" style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;">Clear</div>
+              <div style="font-size:.72rem; color:var(--muted);">Official source validation required</div>
+            </div>
+          </div>
+          <div id="zone-status" style="margin-top:.8rem; font-size:.82rem; color:var(--accent3);">✓ No trigger — No government advisories active</div>
+        </div>
+
+        <div style="margin-top:1.5rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+          <button class="btn-primary" onclick="fetchLiveData()">🔄 Refresh Data</button>
+          <button class="btn-secondary" onclick="simulateRainTrigger()">⚡ Simulate Rain Trigger</button>
+          <button class="btn-secondary" onclick="simulateHeatTrigger()">⚡ Simulate Heat Trigger</button>
+          <span style="font-size:.78rem; color:var(--muted);">Auto-refreshes every 5 minutes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: POLICY -->
+    <div class="tab-content" id="tab-policy">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+        <div class="card">
+          <div class="card-title">Current Policy</div>
+          <div style="background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.25); border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+            <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.4rem; color:var(--accent);">Pro Shield</div>
+            <div style="font-size:.8rem; color:var(--muted); margin:.3rem 0 1rem;">Policy ID: GSP-2026-A4R8K2</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:.7rem; font-size:.85rem;">
+              <div><div style="color:var(--muted); font-size:.72rem;">Coverage</div><div style="font-weight:700;">₹1,200/week</div></div>
+              <div><div style="color:var(--muted); font-size:.72rem;">Premium</div><div style="font-weight:700;">₹99/week</div></div>
+              <div><div style="color:var(--muted); font-size:.72rem;">Start Date</div><div style="font-weight:700;">Apr 3, 2026</div></div>
+              <div><div style="color:var(--muted); font-size:.72rem;">Renews</div><div style="font-weight:700;">Apr 10, 2026</div></div>
+              <div><div style="color:var(--muted); font-size:.72rem;">Triggers</div><div style="font-weight:700;">All 5 active</div></div>
+              <div><div style="color:var(--muted); font-size:.72rem;">Status</div><div style="color:var(--accent3); font-weight:700;">Active ✓</div></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:.7rem; flex-wrap:wrap;">
+            <button class="btn-primary" onclick="renewPolicy()">🔄 Renew Now</button>
+            <button class="btn-secondary" onclick="upgradePolicy()">⬆️ Upgrade to Max</button>
+            <button class="btn-secondary" onclick="cancelPolicy()" style="color:var(--danger); border-color:rgba(239,68,68,.3);">Cancel Policy</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Plan Comparison</div>
+          <div style="display:flex; flex-direction:column; gap:.6rem;">
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.9rem; font-size:.85rem; opacity:.6;">
+              <div style="display:flex; justify-content:space-between; font-family:'Syne',sans-serif; font-weight:700;">
+                <span>Essential Shield</span><span style="color:var(--accent);">₹49/wk</span>
+              </div>
+              <div style="color:var(--muted); font-size:.78rem; margin-top:.3rem;">₹500 coverage · Rain + Heat only</div>
+            </div>
+            <div style="background:rgba(245,158,11,.06); border:2px solid var(--accent); border-radius:8px; padding:.9rem; font-size:.85rem;">
+              <div style="display:flex; justify-content:space-between; font-family:'Syne',sans-serif; font-weight:700;">
+                <span>Pro Shield ✓ Current</span><span style="color:var(--accent);">₹99/wk</span>
+              </div>
+              <div style="color:var(--muted); font-size:.78rem; margin-top:.3rem;">₹1,200 coverage · All 5 triggers · AI pricing</div>
+            </div>
+            <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.9rem; font-size:.85rem;">
+              <div style="display:flex; justify-content:space-between; font-family:'Syne',sans-serif; font-weight:700;">
+                <span>Max Shield</span><span style="color:var(--accent);">₹149/wk</span>
+              </div>
+              <div style="color:var(--muted); font-size:.78rem; margin-top:.3rem;">₹2,000 coverage · Priority payout &lt;1 min</div>
+              <button class="btn-primary" style="margin-top:.7rem; width:100%; font-size:.8rem; padding:.5rem;" onclick="upgradePolicy()">Upgrade →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">AI Dynamic Premium Breakdown — This Week</div>
+        <p style="font-size:.85rem; color:var(--muted); margin-bottom:1rem;">Your premium is computed by our ML model every Sunday, weighing 8 factors to arrive at the optimal weekly rate.</p>
+        <div class="premium-breakdown">
+          <div class="pb-row"><span>Base Premium (Pro Shield)</span><span>₹99</span></div>
+          <div class="pb-row"><span>Zone Risk Adjustment (Zone 3, Hyderabad)</span><span style="color:var(--accent3);">−₹8 (low flood history)</span></div>
+          <div class="pb-row"><span>Weather Forecast Multiplier</span><span style="color:var(--danger);">+₹12 (rain week ahead)</span></div>
+          <div class="pb-row"><span>Worker Tenure Discount (3+ years)</span><span style="color:var(--accent3);">−₹4</span></div>
+          <div class="pb-row"><span>Claim History Adjustment</span><span>₹0 (clean record)</span></div>
+          <div class="pb-row total"><span>Final Weekly Premium</span><span style="color:var(--accent);">₹99</span></div>
+        </div>
+        <a href="premium-engine.html" style="display:inline-block; margin-top:1rem; color:var(--accent2); font-size:.85rem;">→ View Full Premium Engine</a>
+      </div>
+    </div>
+
+    <!-- TAB: CLAIMS -->
+    <div class="tab-content" id="tab-claims">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <div>
+          <h2 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem;">Claims History</h2>
+          <p style="color:var(--muted); font-size:.85rem;">All claims auto-processed. No manual filing required.</p>
+        </div>
+        <a href="claims.html" class="btn-primary" style="text-decoration:none; font-size:.88rem;">Full Claims Dashboard →</a>
+      </div>
+
+      <div class="card">
+        <table class="claims-table" style="font-size:.9rem;">
+          <thead><tr>
+            <th>Claim ID</th><th>Date</th><th>Trigger</th><th>Duration</th><th>Amount</th><th>Fraud Score</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent); font-size:.8rem;">CLM-2026-0487</td>
+              <td>Apr 3, 2026</td>
+              <td>🌧️ Heavy Rain</td>
+              <td>2.5 hrs</td>
+              <td style="color:var(--accent3); font-weight:700;">₹480</td>
+              <td><span style="color:var(--accent3); font-weight:700;">2/100 ✓</span></td>
+              <td><span class="badge active">Auto-Approved</span></td>
+            </tr>
+            <tr>
+              <td style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent); font-size:.8rem;">CLM-2026-0471</td>
+              <td>Mar 26, 2026</td>
+              <td>🌡️ Extreme Heat</td>
+              <td>3.0 hrs</td>
+              <td style="color:var(--accent3); font-weight:700;">₹600</td>
+              <td><span style="color:var(--accent3); font-weight:700;">5/100 ✓</span></td>
+              <td><span class="badge active">Auto-Approved</span></td>
+            </tr>
+            <tr>
+              <td style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent); font-size:.8rem;">CLM-2026-0441</td>
+              <td>Mar 12, 2026</td>
+              <td>😷 AQI Alert</td>
+              <td>4.0 hrs</td>
+              <td style="color:var(--accent3); font-weight:700;">₹320</td>
+              <td><span style="color:var(--accent3); font-weight:700;">1/100 ✓</span></td>
+              <td><span class="badge active">Auto-Approved</span></td>
+            </tr>
+            <tr>
+              <td style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent); font-size:.8rem;">CLM-2026-0401</td>
+              <td>Feb 28, 2026</td>
+              <td>🚧 Zone Curfew</td>
+              <td>5.0 hrs</td>
+              <td style="color:var(--accent3); font-weight:700;">₹900</td>
+              <td><span style="color:var(--accent3); font-weight:700;">3/100 ✓</span></td>
+              <td><span class="badge active">Auto-Approved</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Claim Modal -->
+<div id="claim-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; display:none; align-items:center; justify-content:center;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:2rem; max-width:480px; width:90%; animation:fadeUp .3s ease;">
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <div style="font-size:3rem; margin-bottom:.5rem;">⚡</div>
+      <h2 style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem;">Zero-Touch Claim Processing</h2>
+      <p style="color:var(--muted); font-size:.88rem; margin-top:.5rem;">Claim is being auto-verified against live data sources</p>
+    </div>
+    <div id="claim-steps" style="display:flex; flex-direction:column; gap:.8rem; margin-bottom:1.5rem;">
+      <div class="claim-step" id="cs1" style="display:flex; align-items:center; gap:.8rem; background:var(--surface); border-radius:8px; padding:.8rem;">
+        <span id="cs1-icon">⏳</span>
+        <div><div style="font-size:.88rem; font-weight:600;">Verifying trigger data (OpenMeteo API)</div></div>
+      </div>
+      <div class="claim-step" id="cs2" style="display:flex; align-items:center; gap:.8rem; background:var(--surface); border-radius:8px; padding:.8rem; opacity:.4;">
+        <span id="cs2-icon">⏳</span>
+        <div><div style="font-size:.88rem; font-weight:600;">GPS location validation</div></div>
+      </div>
+      <div class="claim-step" id="cs3" style="display:flex; align-items:center; gap:.8rem; background:var(--surface); border-radius:8px; padding:.8rem; opacity:.4;">
+        <span id="cs3-icon">⏳</span>
+        <div><div style="font-size:.88rem; font-weight:600;">Fraud score computation (12 signals)</div></div>
+      </div>
+      <div class="claim-step" id="cs4" style="display:flex; align-items:center; gap:.8rem; background:var(--surface); border-radius:8px; padding:.8rem; opacity:.4;">
+        <span id="cs4-icon">⏳</span>
+        <div><div style="font-size:.88rem; font-weight:600;">Initiating UPI payout</div></div>
+      </div>
+    </div>
+    <div id="claim-result" style="display:none; text-align:center;">
+      <div style="font-size:2.5rem; margin-bottom:.5rem;">✅</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--accent3);">Claim Approved!</div>
+      <div style="color:var(--muted); font-size:.88rem; margin:.5rem 0 1rem;">₹480 credited to ravi@upi within 2 minutes</div>
+      <div style="font-size:.78rem; color:var(--muted);">Claim ID: CLM-2026-0488 · Fraud Score: 2/100</div>
+    </div>
+    <button onclick="closeModal()" style="margin-top:1rem; width:100%; background:transparent; color:var(--muted); border:1px solid var(--border); padding:.7rem; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Close</button>
+  </div>
+</div>
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; transform:none; }
+}
+
+<script>
+// ─── Tab switching ───
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const idx = ['overview','triggers','policy','claims'].indexOf(name);
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+}
+
+// ─── City coordinates (Hyderabad Zone 3) ───
+const LAT = 17.385;
+const LON = 78.4867;
+
+// ─── Fetch live weather from OpenMeteo ───
+async function fetchLiveData() {
+  document.getElementById('api-status-text').textContent = 'Fetching live data...';
+  try {
+    // Fetch current weather + hourly data
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,apparent_temperature,precipitation,weather_code&hourly=precipitation,apparent_temperature&daily=precipitation_sum,temperature_2m_max&forecast_days=7&timezone=Asia%2FKolkata`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    const currentTemp = data.current.apparent_temperature;
+    const currentPrecip = data.current.precipitation * 12; // convert mm/5min to mm/hr approx
+    const precip = Math.round(currentPrecip * 10) / 10;
+    const heatIndex = Math.round(currentTemp * 10) / 10;
+    
+    // Mock AQI (OpenMeteo doesn't have AQI directly; use PM2.5 proxy or mock)
+    const aqi = Math.floor(60 + Math.random() * 80); // Mock between 60-140 for Hyderabad
+    
+    // Forecast data
+    const maxTemps = data.daily.temperature_2m_max.slice(0,5);
+    const precipSums = data.daily.precipitation_sum.slice(0,5);
+    const rainDays = precipSums.filter(p => p > 5).length;
+    const rainPct = Math.round((rainDays / 5) * 100);
+    const maxTemp = Math.max(...maxTemps);
+    
+    // Update UI
+    updateTriggerUI(precip, heatIndex, aqi);
+    updateForecast(rainPct, maxTemp);
+    updateMiniTriggers(precip, heatIndex, aqi);
+    
+    // Dynamic premium calculation
+    const premium = calculateDynamicPremium(heatIndex, rainPct, aqi);
+    document.getElementById('forecast-premium').textContent = `₹${premium}`;
+    document.getElementById('ov-premium').textContent = `₹${premium}`;
+    
+    document.getElementById('api-status-text').textContent = `Live · Updated ${new Date().toLocaleTimeString('en-IN')}`;
+    document.getElementById('last-updated').textContent = `Updated ${new Date().toLocaleTimeString('en-IN')}`;
+    
+  } catch(err) {
+    // Fallback to mock data if API fails
+    console.log('Using mock data:', err);
+    useMockData();
+  }
+}
+
+function useMockData() {
+  const precip = 8.4; const heat = 38.2; const aqi = 95;
+  updateTriggerUI(precip, heat, aqi);
+  updateForecast(35, 37);
+  updateMiniTriggers(precip, heat, aqi);
+  document.getElementById('api-status-text').textContent = 'Mock data (API fallback)';
+  document.getElementById('last-updated').textContent = 'Mock data';
+  document.getElementById('forecast-premium').textContent = '₹97';
+}
+
+function updateTriggerUI(precip, heat, aqi) {
+  // Rain
+  const rainEl = document.getElementById('t-rain');
+  const rainPct = Math.min((precip / 100) * 100, 100);
+  document.getElementById('rain-bar').style.width = rainPct + '%';
+  
+  if(precip >= 50) {
+    rainEl.textContent = precip.toFixed(1) + ' mm/hr';
+    rainEl.className = 'trigger-val alert';
+    document.getElementById('rain-status').innerHTML = `🚨 <span style="color:var(--danger)">TRIGGER ACTIVE — Rain threshold breached! Auto-claim processing...</span>`;
+    activateAlert('rain', precip);
+  } else {
+    rainEl.textContent = precip.toFixed(1) + ' mm/hr';
+    rainEl.className = 'trigger-val ' + (precip > 30 ? 'warn' : 'safe');
+    document.getElementById('rain-status').textContent = `✓ No trigger — ${precip < 30 ? 'Clear' : 'Moderate rain'} conditions`;
+  }
+
+  // Heat
+  const heatEl = document.getElementById('t-heat');
+  const heatPct = Math.min(((heat - 20) / 35) * 100, 100);
+  document.getElementById('heat-bar').style.width = heatPct + '%';
+  
+  if(heat >= 44) {
+    heatEl.textContent = heat.toFixed(1) + '°C';
+    heatEl.className = 'trigger-val alert';
+    document.getElementById('heat-status').innerHTML = `🚨 <span style="color:var(--danger)">TRIGGER ACTIVE — Extreme heat threshold breached!</span>`;
+    activateAlert('heat', heat);
+  } else {
+    heatEl.textContent = heat.toFixed(1) + '°C';
+    heatEl.className = 'trigger-val ' + (heat > 40 ? 'warn' : 'safe');
+    document.getElementById('heat-status').textContent = `✓ No trigger — ${heat > 40 ? 'High but below threshold' : 'Temperature normal'}`;
+  }
+
+  // AQI
+  const aqiEl = document.getElementById('t-aqi');
+  const aqiPct = Math.min((aqi / 500) * 100, 100);
+  document.getElementById('aqi-bar').style.width = aqiPct + '%';
+  
+  const aqiLabel = aqi < 50 ? 'Good' : aqi < 100 ? 'Satisfactory' : aqi < 200 ? 'Moderate' : aqi < 300 ? 'Poor' : 'Very Poor';
+  if(aqi >= 300) {
+    aqiEl.textContent = aqi + ' AQI';
+    aqiEl.className = 'trigger-val alert';
+    document.getElementById('aqi-status').innerHTML = `🚨 <span style="color:var(--danger)">TRIGGER ACTIVE — AQI threshold breached!</span>`;
+  } else {
+    aqiEl.textContent = aqi + ' AQI';
+    aqiEl.className = 'trigger-val ' + (aqi > 200 ? 'warn' : 'safe');
+    document.getElementById('aqi-status').textContent = `✓ No trigger — Air quality: ${aqiLabel}`;
+  }
+}
+
+function updateMiniTriggers(precip, heat, aqi) {
+  const rainEl = document.getElementById('m-rain');
+  rainEl.textContent = precip.toFixed(1) + ' mm/hr';
+  rainEl.className = 'trigger-val ' + (precip >= 50 ? 'alert' : precip > 30 ? 'warn' : 'safe');
+  
+  const heatEl = document.getElementById('m-heat');
+  heatEl.textContent = heat.toFixed(1) + '°C';
+  heatEl.className = 'trigger-val ' + (heat >= 44 ? 'alert' : heat > 40 ? 'warn' : 'safe');
+  
+  const aqiEl = document.getElementById('m-aqi');
+  aqiEl.textContent = aqi;
+  aqiEl.className = 'trigger-val ' + (aqi >= 300 ? 'alert' : aqi > 200 ? 'warn' : 'safe');
+}
+
+function updateForecast(rainPct, maxTemp) {
+  document.getElementById('forecast-rain').textContent = rainPct + '% (next 5 days)';
+  document.getElementById('forecast-rain').style.color = rainPct > 60 ? 'var(--danger)' : rainPct > 30 ? 'var(--accent)' : 'var(--accent3)';
+  document.getElementById('forecast-temp').textContent = maxTemp.toFixed(1) + '°C max this week';
+}
+
+function calculateDynamicPremium(heat, rainPct, aqi) {
+  let base = 99; // Pro Shield base
+  // Zone 3 Hyderabad — historically lower flood risk: -8
+  base -= 8;
+  // Weather risk factor
+  if(rainPct > 60) base += 15;
+  else if(rainPct > 30) base += 8;
+  // Heat adjustment
+  if(heat > 40) base += 5;
+  // AQI
+  if(aqi > 200) base += 5;
+  // Tenure discount (3+ years): -4
+  base -= 4;
+  return Math.max(49, Math.min(149, Math.round(base)));
+}
+
+function activateAlert(type, value) {
+  const banner = document.getElementById('alert-banner');
+  banner.classList.remove('hidden');
+  banner.style.display = 'flex';
+  
+  if(type === 'rain') {
+    document.getElementById('ab-icon').textContent = '🌧️';
+    document.getElementById('ab-title').textContent = `Heavy Rain Trigger Activated — Hyderabad Zone 3`;
+    document.getElementById('ab-desc').textContent = `Rainfall: ${value.toFixed(1)} mm/hr (threshold: 50 mm/hr) · Auto-claim processing...`;
+    document.getElementById('alert-chip').className = 'alert-chip';
+    document.getElementById('alert-chip').textContent = '🌧️ Rain Alert Active';
+  } else if(type === 'heat') {
+    document.getElementById('ab-icon').textContent = '🌡️';
+    document.getElementById('ab-title').textContent = `Extreme Heat Trigger Activated — Hyderabad Zone 3`;
+    document.getElementById('ab-desc').textContent = `Heat index: ${value.toFixed(1)}°C (threshold: 44°C) · Auto-claim processing...`;
+    document.getElementById('alert-chip').className = 'alert-chip';
+    document.getElementById('alert-chip').textContent = '🌡️ Heat Alert Active';
+  }
+}
+
+function simulateRainTrigger() {
+  updateTriggerUI(62.4, 36.0, 90);
+  updateMiniTriggers(62.4, 36.0, 90);
+  activateAlert('rain', 62.4);
+  switchTab('triggers');
+}
+
+function simulateHeatTrigger() {
+  updateTriggerUI(2.0, 46.8, 110);
+  updateMiniTriggers(2.0, 46.8, 110);
+  activateAlert('heat', 46.8);
+  switchTab('triggers');
+}
+
+// ─── Claim modal ───
+function openClaim() {
+  const modal = document.getElementById('claim-modal');
+  modal.style.display = 'flex';
+  
+  // Reset steps
+  ['cs1','cs2','cs3','cs4'].forEach((id, i) => {
+    document.getElementById(id).style.opacity = i === 0 ? '1' : '.4';
+    document.getElementById(id + '-icon').textContent = '⏳';
+  });
+  document.getElementById('claim-result').style.display = 'none';
+  
+  // Animate steps
+  const steps = ['cs1','cs2','cs3','cs4'];
+  const icons = ['✅','✅','✅','✅'];
+  steps.forEach((id, i) => {
+    setTimeout(() => {
+      document.getElementById(id).style.opacity = '1';
+      document.getElementById(id + '-icon').textContent = icons[i];
+      if(i === 3) {
+        setTimeout(() => {
+          document.getElementById('claim-result').style.display = 'block';
+        }, 500);
+      }
+    }, i * 900 + 400);
+  });
+}
+
+function closeModal() {
+  document.getElementById('claim-modal').style.display = 'none';
+}
+
+function renewPolicy() {
+  alert('✅ Policy Renewed!\n\nPro Shield renewed for another 7 days.\nNew expiry: April 17, 2026\n₹99 will be auto-debited on renewal date.');
+}
+
+function upgradePolicy() {
+  if(confirm('Upgrade to Max Shield?\n\n₹149/week · ₹2,000 coverage · Priority payout (<1 min)\n\nUpgrade starts from next week.')) {
+    alert('✅ Upgrade confirmed! Max Shield starts from April 10, 2026.');
+  }
+}
+
+function cancelPolicy() {
+  if(confirm('Cancel your Pro Shield policy?\n\nYour coverage will remain active until April 10, 2026. No refund for the current week.')) {
+    alert('Policy cancellation scheduled. Coverage active until April 10, 2026.');
+  }
+}
+
+// ─── Auto-refresh every 5 minutes ───
+fetchLiveData();
+setInterval(fetchLiveData, 300000);
+</script>
+</body>
+</html>
